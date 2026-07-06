@@ -3,7 +3,7 @@
 *Working title. An isometric action-adventure in the spirit of Minish Cap, on an Alundra-style ground plane.*
 
 **Platform:** Web, desktop keyboard first · **Stack:** Vite + PixiJS + TypeScript · **Deploy:** GitHub Pages
-**Status:** Phase 0 (not started) · **Last updated:** 2026-07-06
+**Status:** Phase 1 complete (M1) · **Last updated:** 2026-07-06
 
 > **How to use this document:** this file is the contract. Every phase ends with a **Gate** — hard acceptance criteria. Do not start the next phase until the gate is green. Anything not in §2 lives in §14 (Backlog). Adding scope means removing scope. Tick checklists in PRs so this stays a living document.
 
@@ -279,23 +279,23 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 ### Phase 0 — Lock & scaffold *(Milestone M0)*
 
-- [ ] Repo init, Vite + PixiJS + TS strict, ESLint/Prettier
-- [ ] Commit this PLAN.md; sign off §5 spec (tile size, facings, matrix, palette anchors)
-- [ ] Commit JSON Schemas for map / sprite / dialogue / quest / save
-- [ ] GitHub Actions: build + deploy to Pages (empty shell is fine)
-- [ ] Vitest + Playwright harness runs in CI ("game boots" test)
+- [x] Repo init, Vite + PixiJS + TS strict, ESLint/Prettier
+- [x] Commit this PLAN.md; sign off §5 spec (tile size, facings, matrix, palette anchors)
+- [x] Commit JSON Schemas for map / sprite / dialogue / quest / save
+- [x] GitHub Actions: build + deploy to Pages (empty shell is fine)
+- [x] Vitest + Playwright harness runs in CI ("game boots" test)
 
 **Gate:** CI green, empty scene deployed to Pages, spec section frozen.
 
 ### Phase 1 — Grey-box iso engine *(M1: the hard part, zero art)*
 
-- [ ] `iso.ts` transforms + unit tests (round-trip screen↔world)
-- [ ] Render 32×32 diamond grid from a hand-written map JSON
-- [ ] Depth-sorted test pillars; player square walks in front of / behind them correctly
-- [ ] 8-dir input → world-axis movement; facing selection
-- [ ] Circle-vs-grid collision with wall-slide
-- [ ] Camera follow + clamp; fixed-timestep loop; F3 debug overlay
-- [ ] Ground chunk pre-render + culling
+- [x] `iso.ts` transforms + unit tests (round-trip screen↔world)
+- [x] Render 32×32 diamond grid from a hand-written map JSON
+- [x] Depth-sorted test pillars; player square walks in front of / behind them correctly
+- [x] 8-dir input → world-axis movement; facing selection
+- [x] Circle-vs-grid collision with wall-slide
+- [x] Camera follow + clamp; fixed-timestep loop; F3 debug overlay
+- [x] Ground chunk pre-render + culling
 
 **Gate:** 60 fps on a 32×32 map; no sort or collision errors while circling pillars; screen↔world tests pass.
 
