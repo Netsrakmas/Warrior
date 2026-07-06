@@ -6,7 +6,7 @@ import { DebugOverlay } from '../../engine/debug';
 import type { CollisionGrid } from '../../engine/collision';
 import type { Input } from '../../engine/input';
 import type { MapData } from '../types';
-import { Player } from '../entities/player';
+import { Player, type HeroAssets } from '../entities/player';
 
 /** Grey-box world scene: chunked ground, depth-sorted object layer, player, camera. */
 export class WorldScene {
@@ -23,6 +23,7 @@ export class WorldScene {
     readonly map: MapData,
     private readonly input: Input,
     private readonly view: { width: number; height: number },
+    heroAssets?: HeroAssets,
   ) {
     this.grid = { width: map.width, height: map.height, cells: map.layers.collision };
 
@@ -40,6 +41,7 @@ export class WorldScene {
     this.player = new Player(
       spawn ? spawn.tx + 0.5 : map.width / 2,
       spawn ? spawn.ty + 0.5 : map.height / 2,
+      heroAssets,
     );
     this.objectLayer.addChild(this.player.view);
 

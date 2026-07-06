@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>KEYSTONE Sprite Tool</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; display: flex; height: 100vh; font: 13px/1.4 system-ui, sans-serif; background: #14141c; color: #d8d8e0; }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #sheetWrap { flex: 1; overflow: auto; background: #101018; }
+  #previewWrap { height: 260px; display: flex; align-items: center; gap: 16px; padding: 8px; background: #181822; border-top: 1px solid #333; }
+  #preview { background: #223; image-rendering: pixelated; }
+  #side { width: 320px; padding: 10px; overflow-y: auto; background: #1c1c28; border-left: 1px solid #333; }
+  h3 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8a8fa8; }
+  button { background: #2a2a3a; color: #d8d8e0; border: 1px solid #444; border-radius: 3px; padding: 4px 8px; margin: 1px; cursor: pointer; }
+  button.active { background: #4a6b4a; }
+  input, select, textarea { background: #12121a; color: #d8d8e0; border: 1px solid #444; border-radius: 3px; padding: 3px 5px; }
+  input[type="number"] { width: 58px; }
+  textarea { width: 100%; font-family: monospace; font-size: 11px; }
+  .row { display: flex; gap: 6px; align-items: center; margin: 3px 0; flex-wrap: wrap; }
+  .row label { flex: 0 0 80px; }
+  .anim { border: 1px solid #333; border-radius: 4px; padding: 6px; margin: 4px 0; }
+  .anim.selected { border-color: #ffd97a; }
+  .anim input[type="text"] { width: 110px; }
+  #animList .row label { flex: 0 0 50px; }
+</style>
+</head>
+<body>
+<div id="main">
+  <div id="sheetWrap"><canvas id="sheet"></canvas></div>
+  <div id="previewWrap">
+    <canvas id="preview" width="240" height="240"></canvas>
+    <div>
+      <div class="row"><button id="play">▶ play</button><button id="mirror">mirror</button><button id="onion">onion</button></div>
+      <div class="row">frame <span id="frameNo">0</span></div>
+      <div>click preview to set anchor</div>
+    </div>
+  </div>
+</div>
+<div id="side">
+  <h3>Sheet</h3>
+  <div class="row"><input type="file" id="file" accept="image/png" /></div>
+  <div class="row"><label>image</label><input type="text" id="s_image" value="hero_sheet.png" style="width:150px" /></div>
+  <div class="row"><label>id</label><input type="text" id="s_id" value="hero" style="width:150px" /></div>
+  <div class="row"><label>frame</label><input type="number" id="s_fw" value="160" /> × <input type="number" id="s_fh" value="160" /><button id="applyFrame">apply</button></div>
+  <h3>Anchor / boxes</h3>
+  <div class="row"><label>anchor</label><input type="number" id="s_ax" value="80" /> , <input type="number" id="s_ay" value="140" /></div>
+  <div class="row"><label>footprint r</label><input type="number" id="s_fr" value="0.3" step="0.05" /></div>
+  <div class="row"><label>hurtbox</label><input type="number" id="s_hw" value="28" /> × <input type="number" id="s_hh" value="44" /></div>
+  <h3>Animations</h3>
+  <button id="addAnim">+ add animation</button>
+  <div id="animList"></div>
+  <h3>File</h3>
+  <button id="export">Export ⬇</button><button id="copyJson">Copy</button><button id="importBtn">Import from textarea</button>
+  <textarea id="io" rows="8" placeholder="sprite JSON"></textarea>
+</div>
+<script>
+'use strict';
+let img = null; // HTMLImageElement
+let def = {
+  id: 'hero', image: 'hero_sheet.png', frameW: 160, frameH: 160,
+  anchor: { x: 80, y: 140 }, footprint: { r: 0.3 }, hurtbox: { w: 28, h: 44 },
+  facings: { drawn: ['SE', 'NE'], mirrored: { SW: 'SE', NW: 'NE' } },
+  animations: {},
+};
+let anims = []; // [{name,row,frames,fps,loop,events(json str)}] — UI working copy
+let selected = -1, playing = true, mirrored = false, onionSkin = false;
+let previewTime = 0, lastT = performance.now();
+
+const sheetC = document.getElementById('sheet');
+const sheetCtx = sheetC.getContext('2d');
+const prevC = document.getElementById('preview');
+const prevCtx = prevC.getContext('2d');
+
+function drawSheet() {
+  if (!img) { sheetC.width = 600; sheetC.height = 80; sheetCtx.fillStyle = '#666'; sheetCtx.fillText('load a PNG sheet (file input on the right)', 20, 40); return; }
+  sheetC.width = img.width; sheetC.height = img.height;
+  sheetCtx.imageSmoothingEnabled = false;
+  sheetCtx.drawImage(img, 0, 0);
+  sheetCtx.strokeStyle = 'rgba(255,217,122,.5)';
+  for (let x = 0; x <= img.width; x += def.frameW) { sheetCtx.beginPath(); sheetCtx.moveTo(x + 0.5, 0); sheetCtx.lineTo(x + 0.5, img.height); sheetCtx.stroke(); }
+  for (let y = 0; y <= img.height; y += def.frameH) { sheetCtx.beginPath(); sheetCtx.moveTo(0, y + 0.5); sheetCtx.lineTo(img.width, y + 0.5); sheetCtx.stroke(); }
+  // row numbers
+  sheetCtx.fillStyle = '#ffd97a'; sheetCtx.font = '14px monospace';
+  for (let y = 0, r = 0; y < img.height; y += def.frameH, r++) sheetCtx.fillText('row ' + r, 4, y + 16);
+}
+
+function readSideInputs() {
+  def.id = document.getElementById('s_id').value;
+  def.image = document.getElementById('s_image').value;
+  def.anchor.x = Number(document.getElementById('s_ax').value);
+  def.anchor.y = Number(document.getElementById('s_ay').value);
+  def.footprint.r = Number(document.getElementById('s_fr').value);
+  def.hurtbox = { w: Number(document.getElementById('s_hw').value), h: Number(document.getElementById('s_hh').value) };
+}
+function writeSideInputs() {
+  document.getElementById('s_id').value = def.id;
+  document.getElementById('s_image').value = def.image;
+  document.getElementById('s_fw').value = def.frameW;
+  document.getElementById('s_fh').value = def.frameH;
+  document.getElementById('s_ax').value = def.anchor.x;
+  document.getElementById('s_ay').value = def.anchor.y;
+  document.getElementById('s_fr').value = def.footprint.r;
+  if (def.hurtbox) { document.getElementById('s_hw').value = def.hurtbox.w; document.getElementById('s_hh').value = def.hurtbox.h; }
+}
+
+function buildAnimList() {
+  const el = document.getElementById('animList');
+  el.innerHTML = '';
+  anims.forEach((a, i) => {
+    const d = document.createElement('div');
+    d.className = 'anim' + (i === selected ? ' selected' : '');
+    d.innerHTML = `
+      <div class="row"><label>name</label><input type="text" data-k="name" value="${a.name}" /></div>
+      <div class="row"><label>row</label><input type="number" data-k="row" value="${a.row}" />
+        <label>frames</label><input type="number" data-k="frames" value="${a.frames}" /></div>
+      <div class="row"><label>fps</label><input type="number" data-k="fps" value="${a.fps}" />
+        <label>loop</label><input type="checkbox" data-k="loop" ${a.loop ? 'checked' : ''} style="width:auto" /></div>
+      <div class="row"><label>events</label><input type="text" data-k="events" value='${a.events}' style="flex:1" placeholder='{"2":"hit_on"}' /></div>
+      <div class="row"><button data-act="sel">preview</button><button data-act="del">delete</button></div>`;
+    d.querySelectorAll('input').forEach((inp) => {
+      inp.onchange = () => {
+        const k = inp.dataset.k;
+        if (k === 'loop') a.loop = inp.checked;
+        else if (k === 'name' || k === 'events') a[k] = inp.value;
+        else a[k] = Number(inp.value);
+      };
+    });
+    d.querySelector('[data-act="sel"]').onclick = () => { selected = i; previewTime = 0; buildAnimList(); };
+    d.querySelector('[data-act="del"]').onclick = () => { anims.splice(i, 1); if (selected >= anims.length) selected = anims.length - 1; buildAnimList(); };
+    el.appendChild(d);
+  });
+}
+
+function toDef() {
+  readSideInputs();
+  def.animations = {};
+  for (const a of anims) {
+    if (!a.name) continue;
+    const entry = { row: a.row, frames: a.frames, fps: a.fps, loop: a.loop };
+    try { const ev = JSON.parse(a.events || 'null'); if (ev && Object.keys(ev).length) entry.events = ev; } catch { /* ignore bad events */ }
+    def.animations[a.name] = entry;
+  }
+  return def;
+}
+function fromDef(d) {
+  def = d;
+  anims = Object.entries(d.animations || {}).map(([name, a]) => ({
+    name, row: a.row, frames: a.frames, fps: a.fps, loop: !!a.loop, events: a.events ? JSON.stringify(a.events) : '',
+  }));
+  selected = anims.length ? 0 : -1;
+  writeSideInputs();
+  buildAnimList();
+  drawSheet();
+}
+
+function renderPreview(now) {
+  const dt = (now - lastT) / 1000;
+  lastT = now;
+  prevCtx.clearRect(0, 0, prevC.width, prevC.height);
+  const a = anims[selected];
+  if (img && a && a.frames > 0) {
+    if (playing) previewTime += dt;
+    const total = a.frames / a.fps;
+    let t = a.loop ? previewTime % total : Math.min(previewTime, total - 1e-4);
+    const frame = Math.min(a.frames - 1, Math.floor(t * a.fps));
+    document.getElementById('frameNo').textContent = frame;
+    const scale = Math.min(prevC.width / def.frameW, prevC.height / def.frameH);
+    const dw = def.frameW * scale, dh = def.frameH * scale;
+    const ox = (prevC.width - dw) / 2, oy = (prevC.height - dh) / 2;
+    prevCtx.imageSmoothingEnabled = false;
+    prevCtx.save();
+    if (mirrored) { prevCtx.translate(prevC.width, 0); prevCtx.scale(-1, 1); }
+    if (onionSkin && frame > 0) {
+      prevCtx.globalAlpha = 0.3;
+      prevCtx.drawImage(img, (frame - 1) * def.frameW, a.row * def.frameH, def.frameW, def.frameH, ox, oy, dw, dh);
+      prevCtx.globalAlpha = 1;
+    }
+    prevCtx.drawImage(img, frame * def.frameW, a.row * def.frameH, def.frameW, def.frameH, ox, oy, dw, dh);
+    prevCtx.restore();
+    // anchor cross + footprint ellipse + hurtbox (in unmirrored space)
+    const ax = ox + def.anchor.x * scale, ay = oy + def.anchor.y * scale;
+    prevCtx.strokeStyle = '#ff5a5a';
+    prevCtx.beginPath(); prevCtx.moveTo(ax - 8, ay); prevCtx.lineTo(ax + 8, ay); prevCtx.moveTo(ax, ay - 8); prevCtx.lineTo(ax, ay + 8); prevCtx.stroke();
+    const rx = def.footprint.r * 128 / Math.SQRT2 * scale, ry = def.footprint.r * 64 / Math.SQRT2 * scale;
+    prevCtx.strokeStyle = '#00ff88';
+    prevCtx.beginPath(); prevCtx.ellipse(ax, ay, rx, ry, 0, 0, Math.PI * 2); prevCtx.stroke();
+    if (def.hurtbox) {
+      prevCtx.strokeStyle = '#7ad9ff';
+      prevCtx.strokeRect(ax - def.hurtbox.w * scale / 2, ay - def.hurtbox.h * scale, def.hurtbox.w * scale, def.hurtbox.h * scale);
+    }
+  }
+  requestAnimationFrame(renderPreview);
+}
+
+// --- events ---
+document.getElementById('file').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  loadImage(url);
+  document.getElementById('s_image').value = f.name;
+};
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => { img = im; drawSheet(); resolve(); };
+    im.onerror = reject;
+    im.src = url;
+  });
+}
+document.getElementById('applyFrame').onclick = () => {
+  def.frameW = Number(document.getElementById('s_fw').value);
+  def.frameH = Number(document.getElementById('s_fh').value);
+  drawSheet();
+};
+document.getElementById('addAnim').onclick = () => {
+  anims.push({ name: 'idle_SE', row: anims.length, frames: 4, fps: 6, loop: true, events: '' });
+  selected = anims.length - 1;
+  buildAnimList();
+};
+document.getElementById('play').onclick = () => (playing = !playing);
+document.getElementById('mirror').onclick = function () { mirrored = !mirrored; this.classList.toggle('active'); };
+document.getElementById('onion').onclick = function () { onionSkin = !onionSkin; this.classList.toggle('active'); };
+prevC.onclick = (e) => {
+  const a = anims[selected];
+  if (!img || !a) return;
+  const scale = Math.min(prevC.width / def.frameW, prevC.height / def.frameH);
+  const ox = (prevC.width - def.frameW * scale) / 2, oy = (prevC.height - def.frameH * scale) / 2;
+  def.anchor.x = Math.round((e.offsetX - ox) / scale);
+  def.anchor.y = Math.round((e.offsetY - oy) / scale);
+  writeSideInputs();
+};
+document.getElementById('export').onclick = () => {
+  const json = JSON.stringify(toDef(), null, 2);
+  document.getElementById('io').value = json;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = `${def.id}.json`;
+  a.click();
+};
+document.getElementById('copyJson').onclick = () => {
+  const json = JSON.stringify(toDef(), null, 2);
+  document.getElementById('io').value = json;
+  navigator.clipboard.writeText(json);
+};
+document.getElementById('importBtn').onclick = () => {
+  try { fromDef(JSON.parse(document.getElementById('io').value)); } catch (err) { alert('import failed: ' + err.message); }
+};
+
+drawSheet();
+buildAnimList();
+requestAnimationFrame(renderPreview);
+
+// Test hooks.
+window.__spritetool = {
+  loadImageFromURL: (url) => loadImage(url),
+  getDef: () => toDef(),
+  setDef: (d) => fromDef(d),
+  addAnim: (a) => { anims.push({ events: '', ...a }); selected = anims.length - 1; buildAnimList(); },
+  setAnchor: (x, y) => { def.anchor.x = x; def.anchor.y = y; writeSideInputs(); },
+  exportJson: () => JSON.stringify(toDef()),
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "id": "hero",
+  "image": "hero_sheet.png",
+  "frameW": 160,
+  "frameH": 160,
+  "anchor": { "x": 80, "y": 140 },
+  "footprint": { "r": 0.3 },
+  "hurtbox": { "w": 28, "h": 44 },
+  "facings": { "drawn": ["SE", "NE"], "mirrored": { "SW": "SE", "NW": "NE" } },
+  "animations": {
+    "idle_SE": { "row": 0, "frames": 4, "fps": 6, "loop": true },
+    "walk_SE": { "row": 1, "frames": 8, "fps": 12, "loop": true },
+    "idle_NE": { "row": 2, "frames": 4, "fps": 6, "loop": true },
+    "walk_NE": { "row": 3, "frames": 8, "fps": 12, "loop": true }
+  }
+}

@@ -1,19 +1,31 @@
-import { Application } from 'pixi.js';
+import { Application, Assets, Texture } from 'pixi.js';
 import { FixedLoop } from './engine/loop';
 import { Input } from './engine/input';
 import { WorldScene } from './game/scenes/world';
 import type { MapData } from './game/types';
 import type { Facing } from './engine/iso';
+import type { SpriteDef } from './engine/anim';
+import type { HeroAssets } from './game/entities/player';
 import greyboxMap from './data/maps/greybox_01.json';
+import heroDef from './data/sprites/hero.json';
 
 export interface GameDebugHooks {
   booted: boolean;
   testMode: boolean;
-  getPlayer: () => { x: number; y: number; facing: Facing; depth: number };
+  getPlayer: () => {
+    x: number;
+    y: number;
+    facing: Facing;
+    depth: number;
+    anim: { name: string; frame: number } | null;
+  };
   getFPS: () => number;
   getStepCount: () => number;
   getChunks: () => { visible: number; total: number };
+  getMapId: () => string;
   isDebugOverlayOn: () => boolean;
+  /** Swap in a new map (used by map transitions and the editor round-trip). */
+  loadMap: (map: MapData) => void;
   /** Test-mode only: place the player somewhere exact. */
   teleport?: (x: number, y: number) => void;
 }
@@ -42,12 +54,23 @@ async function boot(): Promise<void> {
   if (!root) throw new Error('missing #app element');
   root.appendChild(app.canvas);
 
+  const heroSheet = await Assets.load<Texture>(`${import.meta.env.BASE_URL}assets/hero_sheet.png`);
+  heroSheet.source.scaleMode = 'nearest';
+  const heroAssets: HeroAssets = { def: heroDef as SpriteDef, sheet: heroSheet };
+
   const input = new Input();
   input.attach(window);
 
-  const scene = new WorldScene(app.renderer, greyboxMap as MapData, input, app.screen);
-  app.stage.addChild(scene.container);
-  app.stage.addChild(scene.debug.screenLayer);
+  let scene = new WorldScene(app.renderer, greyboxMap as MapData, input, app.screen, heroAssets);
+  app.stage.addChild(scene.container, scene.debug.screenLayer);
+
+  const loadMap = (map: MapData): void => {
+    app.stage.removeChild(scene.container, scene.debug.screenLayer);
+    scene.container.destroy({ children: true });
+    scene.debug.screenLayer.destroy({ children: true });
+    scene = new WorldScene(app.renderer, map, input, app.screen, heroAssets);
+    app.stage.addChild(scene.container, scene.debug.screenLayer);
+  };
 
   const loop = new FixedLoop(
     (dt) => scene.update(dt),
@@ -63,11 +86,14 @@ async function boot(): Promise<void> {
       y: scene.player.y,
       facing: scene.player.facing,
       depth: scene.player.depth,
+      anim: scene.player.animInfo,
     }),
     getFPS: () => app.ticker.FPS,
     getStepCount: () => loop.stepCount,
     getChunks: () => ({ visible: scene.ground.visibleChunkCount, total: scene.ground.chunkCount }),
+    getMapId: () => scene.map.id,
     isDebugOverlayOn: () => scene.debug.isEnabled,
+    loadMap,
   };
   if (testMode) hooks.teleport = (x, y) => scene.player.teleport(x, y);
   window.__game = hooks;

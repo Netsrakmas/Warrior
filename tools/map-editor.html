@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>KEYSTONE Map Editor</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; display: flex; height: 100vh; font: 13px/1.4 system-ui, sans-serif; background: #14141c; color: #d8d8e0; }
+  #canvasWrap { flex: 1; position: relative; overflow: hidden; }
+  canvas { display: block; cursor: crosshair; }
+  #side { width: 300px; padding: 10px; overflow-y: auto; background: #1c1c28; border-left: 1px solid #333; }
+  h3 { margin: 12px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8a8fa8; }
+  button { background: #2a2a3a; color: #d8d8e0; border: 1px solid #444; border-radius: 3px; padding: 4px 8px; margin: 1px; cursor: pointer; }
+  button.active { background: #4a6b4a; border-color: #7a9b7a; }
+  input, select, textarea { background: #12121a; color: #d8d8e0; border: 1px solid #444; border-radius: 3px; padding: 3px 5px; width: 100%; }
+  input[type="number"] { width: 60px; }
+  textarea { font-family: monospace; font-size: 11px; }
+  .row { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+  .row label { flex: 0 0 90px; }
+  .swatch { width: 26px; height: 26px; border: 2px solid #444; border-radius: 3px; display: inline-block; cursor: pointer; }
+  .swatch.active { border-color: #ffd97a; }
+  #status { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.6); padding: 4px 8px; border-radius: 3px; font-family: monospace; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="canvasWrap"><canvas id="c"></canvas><div id="status"></div></div>
+<div id="side">
+  <h3>Tool</h3>
+  <div id="tools"></div>
+  <h3>Layer</h3>
+  <div id="layers"></div>
+  <h3>Palette</h3>
+  <div id="palette"></div>
+  <h3>Entity / Object / Trigger</h3>
+  <div class="row"><label>Type</label><select id="placeType"></select></div>
+  <div class="row"><label>Props JSON</label></div>
+  <textarea id="props" rows="4">{}</textarea>
+  <h3>Map settings</h3>
+  <div class="row"><label>id</label><input id="m_id" /></div>
+  <div class="row"><label>name</label><input id="m_name" /></div>
+  <div class="row"><label>tileset</label><input id="m_tileset" /></div>
+  <div class="row"><label>size</label><input id="m_w" type="number" min="4" max="128" /> × <input id="m_h" type="number" min="4" max="128" /><button id="resize">apply</button></div>
+  <div class="row"><label>music</label><input id="m_music" /></div>
+  <div class="row"><label>restoredFlag</label><input id="m_flag" /></div>
+  <h3>File</h3>
+  <button id="newMap">New</button>
+  <button id="export">Export ⬇</button>
+  <button id="copyJson">Copy</button>
+  <button id="importBtn">Import from textarea</button>
+  <textarea id="io" rows="6" placeholder="paste map JSON here to import; export writes here too"></textarea>
+  <p style="color:#777">Pan: drag right/middle mouse or hold Space. Zoom: wheel. Undo/redo: Ctrl+Z / Ctrl+Y.</p>
+</div>
+<script>
+'use strict';
+const TILE_W = 128, TILE_H = 64;
+const TILE_COLORS = { 0: null, 1: '#3d5c3d', 2: '#466a46', 3: '#8a7a5a', 4: '#2a6b7a', 5: '#6a6a7a', 6: '#5a4a3a', 7: '#7a6b8a', 8: '#4a5a6a' };
+const COLL_COLORS = { 1: 'rgba(255,60,60,.45)', 2: 'rgba(60,140,255,.45)', 3: 'rgba(255,200,60,.45)' };
+const OVERLAY_COLORS = { 1: '#c8b88a', 2: '#a89a6a', 3: '#888', 4: '#bbb' };
+const LAYERS = ['ground', 'overlay', 'collision', 'objects', 'entities', 'triggers'];
+const TOOLS = ['paint', 'erase', 'rect', 'eyedrop'];
+const PLACE_TYPES = {
+  objects: ['pillar', 'tree_large', 'bush', 'rock_small', 'rock_large', 'signpost', 'shrine_stone', 'keystone_pedestal'],
+  entities: ['player_spawn', 'enemy_husk', 'enemy_spitter', 'enemy_skitter', 'npc', 'chest', 'pushable_block', 'pressure_plate', 'door'],
+  triggers: ['goto', 'flag'],
+};
+
+function makeGrid(w, h, fill) { return Array.from({ length: h }, () => Array.from({ length: w }, () => fill)); }
+function newMap(w, h) {
+  return {
+    id: 'untitled_01', name: 'Untitled', tileset: 'overworld', width: w, height: h,
+    layers: { ground: makeGrid(w, h, 1), overlay: makeGrid(w, h, 0), collision: makeGrid(w, h, 0) },
+    objects: [], entities: [], triggers: [], ambient: {},
+  };
+}
+
+let map = newMap(32, 32);
+let view = { x: 0, y: 0, scale: 0.5 };
+let cur = { tool: 'paint', layer: 'ground', tile: 1, visible: Object.fromEntries(LAYERS.map((l) => [l, true])) };
+let undoStack = [], redoStack = [];
+let hover = null, rectStart = null, panning = null, spaceHeld = false;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+function w2s(wx, wy) { return { x: ((wx - wy) * TILE_W) / 2, y: ((wx + wy) * TILE_H) / 2 }; }
+function s2w(sx, sy) { return { x: (sx / (TILE_W / 2) + sy / (TILE_H / 2)) / 2, y: (sy / (TILE_H / 2) - sx / (TILE_W / 2)) / 2 }; }
+function screenToTile(px, py) {
+  const sx = (px - view.x) / view.scale, sy = (py - view.y) / view.scale;
+  const w = s2w(sx, sy);
+  return { tx: Math.floor(w.x), ty: Math.floor(w.y) };
+}
+function inBounds(tx, ty) { return tx >= 0 && ty >= 0 && tx < map.width && ty < map.height; }
+
+function pushUndo() { undoStack.push(JSON.stringify(map)); if (undoStack.length > 100) undoStack.shift(); redoStack = []; }
+function undo() { if (!undoStack.length) return; redoStack.push(JSON.stringify(map)); map = JSON.parse(undoStack.pop()); syncSettings(); render(); }
+function redo() { if (!redoStack.length) return; undoStack.push(JSON.stringify(map)); map = JSON.parse(redoStack.pop()); syncSettings(); render(); }
+
+function isGridLayer(l) { return l === 'ground' || l === 'overlay' || l === 'collision'; }
+
+function applyAt(tx, ty, erase) {
+  if (!inBounds(tx, ty)) return;
+  const l = cur.layer;
+  if (isGridLayer(l)) {
+    map.layers[l][ty][tx] = erase ? 0 : cur.tile;
+  } else if (l === 'objects' || l === 'entities') {
+    const list = map[l];
+    const idx = list.findIndex((o) => o.tx === tx && o.ty === ty);
+    if (erase) { if (idx >= 0) list.splice(idx, 1); return; }
+    if (idx >= 0) list.splice(idx, 1);
+    const item = { type: document.getElementById('placeType').value, tx, ty };
+    if (l === 'entities') { const p = parseProps(); if (p && Object.keys(p).length) item.props = p; }
+    list.push(item);
+  } else if (l === 'triggers') {
+    const idx = map.triggers.findIndex((t) => tx >= t.tx && tx < t.tx + t.w && ty >= t.ty && ty < t.ty + t.h);
+    if (erase) { if (idx >= 0) map.triggers.splice(idx, 1); return; }
+    const action = document.getElementById('placeType').value;
+    const t = { shape: 'rect', tx, ty, w: 1, h: 1, action, ...parseProps() };
+    map.triggers.push(t);
+  }
+}
+function parseProps() { try { return JSON.parse(document.getElementById('props').value || '{}'); } catch { return {}; } }
+
+function eyedrop(tx, ty) {
+  if (!inBounds(tx, ty) || !isGridLayer(cur.layer)) return;
+  cur.tile = map.layers[cur.layer][ty][tx];
+  buildPalette();
+}
+
+function fillRect(a, b, erase) {
+  const x0 = Math.min(a.tx, b.tx), x1 = Math.max(a.tx, b.tx);
+  const y0 = Math.min(a.ty, b.ty), y1 = Math.max(a.ty, b.ty);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) applyAt(tx, ty, erase);
+}
+
+function drawDiamond(tx, ty, fill, stroke) {
+  const t = w2s(tx, ty);
+  ctx.beginPath();
+  ctx.moveTo(t.x, t.y);
+  ctx.lineTo(t.x + TILE_W / 2, t.y + TILE_H / 2);
+  ctx.lineTo(t.x, t.y + TILE_H);
+  ctx.lineTo(t.x - TILE_W / 2, t.y + TILE_H / 2);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1 / view.scale; ctx.stroke(); }
+}
+
+function render() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  ctx.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
+  ctx.clearRect(-view.x / view.scale, -view.y / view.scale, canvas.width / view.scale, canvas.height / view.scale);
+
+  for (let ty = 0; ty < map.height; ty++) for (let tx = 0; tx < map.width; tx++) {
+    if (cur.visible.ground) {
+      const id = map.layers.ground[ty][tx];
+      drawDiamond(tx, ty, TILE_COLORS[id] || (id ? '#555' : '#101018'), 'rgba(0,0,0,.25)');
+    }
+    if (cur.visible.overlay) {
+      const ov = map.layers.overlay[ty][tx];
+      if (ov) { const t = w2s(tx, ty); ctx.fillStyle = OVERLAY_COLORS[ov] || '#ccc'; ctx.beginPath(); ctx.ellipse(t.x, t.y + TILE_H / 2, TILE_W / 5, TILE_H / 5, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
+    if (cur.visible.collision) {
+      const cl = map.layers.collision[ty][tx];
+      if (cl) drawDiamond(tx, ty, COLL_COLORS[cl] || 'rgba(255,255,255,.3)');
+    }
+  }
+  ctx.font = `${12 / view.scale}px monospace`;
+  ctx.textAlign = 'center';
+  if (cur.visible.objects) for (const o of map.objects) {
+    const t = w2s(o.tx + 0.5, o.ty + 0.5);
+    ctx.fillStyle = '#a5aac2'; ctx.fillRect(t.x - 10 / view.scale, t.y - 40 / view.scale, 20 / view.scale, 40 / view.scale);
+    ctx.fillStyle = '#fff'; ctx.fillText(o.type, t.x, t.y + 14 / view.scale);
+  }
+  if (cur.visible.entities) for (const e of map.entities) {
+    const t = w2s(e.tx + 0.5, e.ty + 0.5);
+    ctx.fillStyle = e.type === 'player_spawn' ? '#ffd97a' : '#d9738a';
+    ctx.beginPath(); ctx.arc(t.x, t.y, 12 / view.scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(e.type, t.x, t.y + 26 / view.scale);
+  }
+  if (cur.visible.triggers) for (const tr of map.triggers) {
+    ctx.strokeStyle = '#7ad9ff'; ctx.lineWidth = 2 / view.scale;
+    const p0 = w2s(tr.tx, tr.ty), p1 = w2s(tr.tx + tr.w, tr.ty), p2 = w2s(tr.tx + tr.w, tr.ty + tr.h), p3 = w2s(tr.tx, tr.ty + tr.h);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = '#7ad9ff'; ctx.fillText(tr.action, (p0.x + p2.x) / 2, (p0.y + p2.y) / 2);
+  }
+  if (hover && inBounds(hover.tx, hover.ty)) drawDiamond(hover.tx, hover.ty, 'rgba(255,255,255,.15)', '#ffd97a');
+  if (rectStart && hover) {
+    const x0 = Math.min(rectStart.tx, hover.tx), x1 = Math.max(rectStart.tx, hover.tx);
+    const y0 = Math.min(rectStart.ty, hover.ty), y1 = Math.max(rectStart.ty, hover.ty);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) drawDiamond(tx, ty, 'rgba(255,217,122,.25)');
+  }
+  document.getElementById('status').textContent = hover ? `tile ${hover.tx}, ${hover.ty} · ${cur.layer} · ${cur.tool}` : '';
+}
+
+// --- UI ---
+function buildButtons(elId, items, get, set) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  for (const it of items) {
+    const b = document.createElement('button');
+    b.textContent = it;
+    b.className = get() === it ? 'active' : '';
+    b.onclick = () => { set(it); buildButtons(elId, items, get, set); buildPalette(); buildPlaceTypes(); render(); };
+    el.appendChild(b);
+  }
+}
+function buildLayerButtons() {
+  const el = document.getElementById('layers');
+  el.innerHTML = '';
+  for (const l of LAYERS) {
+    const b = document.createElement('button');
+    b.textContent = l;
+    b.className = cur.layer === l ? 'active' : '';
+    b.onclick = () => { cur.layer = l; buildLayerButtons(); buildPalette(); buildPlaceTypes(); render(); };
+    const v = document.createElement('button');
+    v.textContent = cur.visible[l] ? '👁' : '·';
+    v.title = 'toggle visibility';
+    v.onclick = () => { cur.visible[l] = !cur.visible[l]; buildLayerButtons(); render(); };
+    const row = document.createElement('div');
+    row.append(b, v);
+    el.appendChild(row);
+  }
+}
+function buildPalette() {
+  const el = document.getElementById('palette');
+  el.innerHTML = '';
+  const src = cur.layer === 'collision'
+    ? [[0, 'rgba(255,255,255,.1)'], [1, COLL_COLORS[1]], [2, COLL_COLORS[2]], [3, COLL_COLORS[3]]]
+    : Object.entries(TILE_COLORS);
+  if (!isGridLayer(cur.layer)) { el.textContent = 'place items with the panel below'; return; }
+  for (const [id, color] of src) {
+    const s = document.createElement('span');
+    s.className = 'swatch' + (String(cur.tile) === String(id) ? ' active' : '');
+    s.style.background = color || '#101018';
+    s.title = `id ${id}`;
+    s.onclick = () => { cur.tile = Number(id); buildPalette(); };
+    el.appendChild(s);
+  }
+}
+function buildPlaceTypes() {
+  const sel = document.getElementById('placeType');
+  const types = PLACE_TYPES[cur.layer] || [];
+  sel.innerHTML = types.map((t) => `<option>${t}</option>`).join('');
+}
+function syncSettings() {
+  for (const [id, key] of [['m_id', 'id'], ['m_name', 'name'], ['m_tileset', 'tileset']]) document.getElementById(id).value = map[key];
+  document.getElementById('m_w').value = map.width;
+  document.getElementById('m_h').value = map.height;
+  document.getElementById('m_music').value = map.ambient?.music || '';
+  document.getElementById('m_flag').value = map.ambient?.restoredFlag || '';
+}
+function readSettings() {
+  map.id = document.getElementById('m_id').value;
+  map.name = document.getElementById('m_name').value;
+  map.tileset = document.getElementById('m_tileset').value;
+  const music = document.getElementById('m_music').value;
+  const flag = document.getElementById('m_flag').value;
+  map.ambient = {};
+  if (music) map.ambient.music = music;
+  if (flag) map.ambient.restoredFlag = flag;
+}
+function resizeMap(w, h) {
+  pushUndo();
+  for (const l of ['ground', 'overlay', 'collision']) {
+    const g = makeGrid(w, h, l === 'ground' ? 1 : 0);
+    for (let y = 0; y < Math.min(h, map.height); y++) for (let x = 0; x < Math.min(w, map.width); x++) g[y][x] = map.layers[l][y][x];
+    map.layers[l] = g;
+  }
+  map.width = w; map.height = h;
+  map.objects = map.objects.filter((o) => o.tx < w && o.ty < h);
+  map.entities = map.entities.filter((e) => e.tx < w && e.ty < h);
+  map.triggers = map.triggers.filter((t) => t.tx < w && t.ty < h);
+  syncSettings(); render();
+}
+function exportJson() {
+  readSettings();
+  const json = JSON.stringify(map);
+  document.getElementById('io').value = json;
+  return json;
+}
+
+// --- events ---
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 1 || e.button === 2 || spaceHeld) { panning = { x: e.offsetX, y: e.offsetY }; return; }
+  const t = screenToTile(e.offsetX, e.offsetY);
+  if (cur.tool === 'eyedrop') { eyedrop(t.tx, t.ty); return; }
+  if (cur.tool === 'rect') { rectStart = t; return; }
+  pushUndo();
+  applyAt(t.tx, t.ty, cur.tool === 'erase');
+  render();
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (panning) { view.x += e.offsetX - panning.x; view.y += e.offsetY - panning.y; panning = { x: e.offsetX, y: e.offsetY }; render(); return; }
+  hover = screenToTile(e.offsetX, e.offsetY);
+  if (e.buttons === 1 && (cur.tool === 'paint' || cur.tool === 'erase')) applyAt(hover.tx, hover.ty, cur.tool === 'erase');
+  render();
+});
+window.addEventListener('mouseup', () => {
+  panning = null;
+  if (rectStart && hover) { pushUndo(); fillRect(rectStart, hover, cur.tool === 'erase'); rectStart = null; render(); }
+});
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const ns = Math.max(0.1, Math.min(2, view.scale * f));
+  view.x = e.offsetX - ((e.offsetX - view.x) * ns) / view.scale;
+  view.y = e.offsetY - ((e.offsetY - view.y) * ns) / view.scale;
+  view.scale = ns;
+  render();
+}, { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { spaceHeld = true; e.preventDefault(); }
+  if (e.ctrlKey && e.code === 'KeyZ') { e.preventDefault(); undo(); }
+  if (e.ctrlKey && e.code === 'KeyY') { e.preventDefault(); redo(); }
+});
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceHeld = false; });
+window.addEventListener('resize', render);
+
+buildButtons('tools', TOOLS, () => cur.tool, (t) => (cur.tool = t));
+buildLayerButtons();
+buildPalette();
+buildPlaceTypes();
+syncSettings();
+document.getElementById('resize').onclick = () => resizeMap(Number(document.getElementById('m_w').value), Number(document.getElementById('m_h').value));
+document.getElementById('newMap').onclick = () => { pushUndo(); map = newMap(32, 32); syncSettings(); render(); };
+document.getElementById('export').onclick = () => {
+  const json = exportJson();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = `${map.id}.json`;
+  a.click();
+};
+document.getElementById('copyJson').onclick = () => navigator.clipboard.writeText(exportJson());
+document.getElementById('importBtn').onclick = () => {
+  try {
+    const m = JSON.parse(document.getElementById('io').value);
+    if (!m.layers || !m.layers.ground || !m.layers.collision) throw new Error('missing layers');
+    pushUndo();
+    if (!m.layers.overlay) m.layers.overlay = makeGrid(m.width, m.height, 0);
+    for (const k of ['objects', 'entities', 'triggers']) if (!m[k]) m[k] = [];
+    if (!m.ambient) m.ambient = {};
+    map = m; syncSettings(); render();
+  } catch (err) { alert('import failed: ' + err.message); }
+};
+
+// center view on map
+view.x = wrap.clientWidth / 2;
+view.y = 60;
+render();
+
+// Test hooks (Playwright drives the editor through these).
+window.__editor = {
+  getMap: () => map,
+  setMap: (m) => { map = m; syncSettings(); render(); },
+  setTool: (t) => (cur.tool = t),
+  setLayer: (l) => { cur.layer = l; buildPlaceTypes(); },
+  setTile: (t) => (cur.tile = t),
+  setPlaceType: (t) => { const sel = document.getElementById('placeType'); sel.innerHTML = `<option>${t}</option>`; sel.value = t; },
+  paintAt: (tx, ty) => { pushUndo(); applyAt(tx, ty, cur.tool === 'erase'); render(); },
+  screenToTile,
+  exportJson,
+  undo,
+  redo,
+};
+</script>
+</body>
+</html>

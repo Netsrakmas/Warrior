@@ -3,7 +3,7 @@
 *Working title. An isometric action-adventure in the spirit of Minish Cap, on an Alundra-style ground plane.*
 
 **Platform:** Web, desktop keyboard first · **Stack:** Vite + PixiJS + TypeScript · **Deploy:** GitHub Pages
-**Status:** Phase 1 complete (M1) · **Last updated:** 2026-07-06
+**Status:** Phase 2 complete (M2) · **Last updated:** 2026-07-06
 
 > **How to use this document:** this file is the contract. Every phase ends with a **Gate** — hard acceptance criteria. Do not start the next phase until the gate is green. Anything not in §2 lives in §14 (Backlog). Adding scope means removing scope. Tick checklists in PRs so this stays a living document.
 
@@ -251,23 +251,23 @@ Both are single-file HTML pages, no build step, talking the schemas in §6.
 
 ### 8.1 Map editor — MVP
 
-- [ ] Load tileset + props images; palette panel with tile/prop picker
-- [ ] Iso grid render with pan (drag) / zoom (wheel); mouse → tile picking (§5.1 inverse)
-- [ ] Layers: ground / overlay / collision / objects / entities / triggers; visibility toggles
-- [ ] Paint, erase, rectangle fill, eyedropper; undo/redo (Ctrl+Z)
-- [ ] Entity & trigger placement with a small props form (JSON textarea is fine for v1)
-- [ ] Import/export map JSON (file download + paste-in)
-- [ ] Map settings: size, tileset, music, restoredFlag
+- [x] Load tileset + props images; palette panel with tile/prop picker *(grey-box colour palette until Phase 5 art exists)*
+- [x] Iso grid render with pan (drag) / zoom (wheel); mouse → tile picking (§5.1 inverse)
+- [x] Layers: ground / overlay / collision / objects / entities / triggers; visibility toggles
+- [x] Paint, erase, rectangle fill, eyedropper; undo/redo (Ctrl+Z)
+- [x] Entity & trigger placement with a small props form (JSON textarea is fine for v1)
+- [x] Import/export map JSON (file download + paste-in)
+- [x] Map settings: size, tileset, music, restoredFlag
 
 **Non-goals:** autotiling, minimap, multi-select, in-tool playtest. Backlog.
 
 ### 8.2 Sprite tool (assembler) — MVP
 
-- [ ] Load sheet PNG; set frame W/H; auto grid slice with row/column preview
-- [ ] Define animations: name, row, frame count, fps, loop; per-frame event tags
-- [ ] Click-to-set anchor; drag footprint radius + hurtbox; visualized on the frame
-- [ ] Live preview: play any animation, toggle mirrored facing, onion-skin previous frame
-- [ ] Import/export sprite JSON (§6.2)
+- [x] Load sheet PNG; set frame W/H; auto grid slice with row/column preview
+- [x] Define animations: name, row, frame count, fps, loop; per-frame event tags
+- [x] Click-to-set anchor; footprint radius + hurtbox inputs; visualized on the frame
+- [x] Live preview: play any animation, toggle mirrored facing, onion-skin previous frame
+- [x] Import/export sprite JSON (§6.2)
 
 **Non-goals:** pixel editing (that's Aseprite's job), palette ops, packing. Backlog.
 
@@ -301,9 +301,9 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 ### Phase 2 — Tools *(M2)*
 
-- [ ] Map editor MVP (§8.1)
-- [ ] Sprite tool MVP (§8.2)
-- [ ] Engine loads editor-made maps and tool-made sprite defs
+- [x] Map editor MVP (§8.1)
+- [x] Sprite tool MVP (§8.2)
+- [x] Engine loads editor-made maps and tool-made sprite defs
 
 **Gate:** full round-trip — a map painted in the editor plays in the engine; a placeholder sheet assembled in the sprite tool animates in-game with correct anchor and footprint.
 

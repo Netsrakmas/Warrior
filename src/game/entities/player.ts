@@ -1,34 +1,51 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Texture } from 'pixi.js';
 import { depthOf, facingFromVector, worldToScreen, type Facing } from '../../engine/iso';
 import { moveCircle, type CollisionGrid } from '../../engine/collision';
+import { AnimSprite, type SpriteDef } from '../../engine/anim';
 import type { Input } from '../../engine/input';
 
 const SPEED = 4; // tiles per second
-export const PLAYER_RADIUS = 0.3; // footprint, tile units
+export const PLAYER_RADIUS = 0.3; // footprint, tile units (matches hero.json)
 
-/** Grey-box hero: an outlined slab + engine blob shadow. Real sprites arrive in Phase 5. */
+export interface HeroAssets {
+  def: SpriteDef;
+  sheet: Texture;
+}
+
+/** The hero: sprite-tool-defined animations when assets exist, grey-box slab otherwise. */
 export class Player {
   readonly view = new Container();
   x: number;
   y: number;
   facing: Facing = 'SE';
+  readonly radius: number;
+  private readonly anim: AnimSprite | null = null;
+  private moving = false;
   private prevX: number;
   private prevY: number;
 
-  constructor(spawnX: number, spawnY: number) {
+  constructor(spawnX: number, spawnY: number, assets?: HeroAssets) {
     this.x = spawnX;
     this.y = spawnY;
     this.prevX = spawnX;
     this.prevY = spawnY;
+    this.radius = assets?.def.footprint.r ?? PLAYER_RADIUS;
 
-    const g = new Graphics();
     // Blob shadow (engine-drawn — PLAN §5.2).
-    g.ellipse(0, 0, 34, 17).fill({ color: 0x000000, alpha: 0.3 });
-    // Body slab, anchored at the feet.
-    g.rect(-20, -78, 40, 72).fill(0xd9a066).stroke({ width: 2, color: 0x5a3a1a });
-    // Facing tick so orientation is readable in grey-box.
-    g.rect(-6, -70, 12, 10).fill(0x5a3a1a);
-    this.view.addChild(g);
+    const shadow = new Graphics();
+    shadow.ellipse(0, 0, 34, 17).fill({ color: 0x000000, alpha: 0.3 });
+    this.view.addChild(shadow);
+
+    if (assets) {
+      this.anim = new AnimSprite(assets.def, assets.sheet);
+      this.anim.play('idle', this.facing);
+      this.view.addChild(this.anim);
+    } else {
+      const g = new Graphics();
+      g.rect(-20, -78, 40, 72).fill(0xd9a066).stroke({ width: 2, color: 0x5a3a1a });
+      g.rect(-6, -70, 12, 10).fill(0x5a3a1a);
+      this.view.addChild(g);
+    }
     this.syncView(1);
   }
 
@@ -37,18 +54,24 @@ export class Player {
     this.prevY = this.y;
 
     const dir = input.worldDir();
-    if (dir.x !== 0 || dir.y !== 0) {
+    this.moving = dir.x !== 0 || dir.y !== 0;
+    if (this.moving) {
       this.facing = facingFromVector(dir.x, dir.y);
       const next = moveCircle(
         grid,
         this.x,
         this.y,
-        PLAYER_RADIUS,
+        this.radius,
         dir.x * SPEED * dt,
         dir.y * SPEED * dt,
       );
       this.x = next.x;
       this.y = next.y;
+    }
+
+    if (this.anim) {
+      this.anim.play(this.moving ? 'walk' : 'idle', this.facing);
+      this.anim.update(dt);
     }
   }
 
@@ -61,6 +84,10 @@ export class Player {
 
   get depth(): number {
     return depthOf(this.x, this.y);
+  }
+
+  get animInfo(): { name: string; frame: number } | null {
+    return this.anim ? { name: this.anim.animName, frame: this.anim.frame } : null;
   }
 
   /** Interpolated render position between sim ticks. */
