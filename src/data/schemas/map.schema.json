@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keystone/map.schema.json",
+  "title": "Keystone Map",
+  "type": "object",
+  "required": ["id", "name", "tileset", "width", "height", "layers"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z]+_[0-9]{2}$" },
+    "name": { "type": "string" },
+    "tileset": { "type": "string" },
+    "width": { "type": "integer", "minimum": 1 },
+    "height": { "type": "integer", "minimum": 1 },
+    "layers": {
+      "type": "object",
+      "required": ["ground", "collision"],
+      "additionalProperties": false,
+      "properties": {
+        "ground": { "$ref": "#/$defs/grid" },
+        "overlay": { "$ref": "#/$defs/grid" },
+        "collision": {
+          "description": "0 walk, 1 solid, 2 water, 3 cracked (charge-breakable)",
+          "$ref": "#/$defs/grid"
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "tx", "ty"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "tx": { "type": "number" },
+          "ty": { "type": "number" }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "tx", "ty"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "tx": { "type": "number" },
+          "ty": { "type": "number" },
+          "props": { "type": "object" }
+        }
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["shape", "tx", "ty", "w", "h", "action"],
+        "additionalProperties": false,
+        "properties": {
+          "shape": { "const": "rect" },
+          "tx": { "type": "number" },
+          "ty": { "type": "number" },
+          "w": { "type": "number", "exclusiveMinimum": 0 },
+          "h": { "type": "number", "exclusiveMinimum": 0 },
+          "action": { "enum": ["goto", "flag"] },
+          "target": { "type": "string" },
+          "set": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+        }
+      }
+    },
+    "ambient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "music": { "type": "string" },
+        "restoredFlag": { "type": "string", "pattern": "^f_[a-z0-9_]+$" }
+      }
+    }
+  },
+  "$defs": {
+    "grid": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

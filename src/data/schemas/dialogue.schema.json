@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keystone/dialogue.schema.json",
+  "title": "Keystone Dialogue",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["lines"],
+    "additionalProperties": false,
+    "properties": {
+      "lines": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "required": ["who", "text"],
+          "additionalProperties": false,
+          "properties": {
+            "who": { "type": "string" },
+            "text": { "type": "string" },
+            "portrait": { "type": "string" }
+          }
+        }
+      },
+      "setFlag": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+      "startQuest": { "type": "string", "pattern": "^q[0-9s]+_[a-z0-9_]+$" },
+      "requiresFlag": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+    }
+  }
+}

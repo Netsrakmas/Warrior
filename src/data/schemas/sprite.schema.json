@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keystone/sprite.schema.json",
+  "title": "Keystone Sprite Definition",
+  "type": "object",
+  "required": ["id", "image", "frameW", "frameH", "anchor", "footprint", "facings", "animations"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "image": { "type": "string" },
+    "frameW": { "type": "integer", "minimum": 1 },
+    "frameH": { "type": "integer", "minimum": 1 },
+    "anchor": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "footprint": {
+      "type": "object",
+      "required": ["r"],
+      "additionalProperties": false,
+      "properties": {
+        "r": { "type": "number", "exclusiveMinimum": 0, "description": "collision circle radius, tile units" }
+      }
+    },
+    "hurtbox": {
+      "type": "object",
+      "required": ["w", "h"],
+      "additionalProperties": false,
+      "properties": {
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "h": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "facings": {
+      "type": "object",
+      "required": ["drawn"],
+      "additionalProperties": false,
+      "properties": {
+        "drawn": {
+          "type": "array",
+          "items": { "enum": ["SE", "NE", "SW", "NW"] },
+          "minItems": 1
+        },
+        "mirrored": {
+          "type": "object",
+          "additionalProperties": { "enum": ["SE", "NE", "SW", "NW"] }
+        }
+      }
+    },
+    "animations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z]+_(SE|NE|SW|NW)$": {
+          "type": "object",
+          "required": ["row", "frames", "fps", "loop"],
+          "additionalProperties": false,
+          "properties": {
+            "row": { "type": "integer", "minimum": 0 },
+            "frames": { "type": "integer", "minimum": 1 },
+            "fps": { "type": "number", "exclusiveMinimum": 0 },
+            "loop": { "type": "boolean" },
+            "events": {
+              "type": "object",
+              "patternProperties": { "^[0-9]+$": { "type": "string" } },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

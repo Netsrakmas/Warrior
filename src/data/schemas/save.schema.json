@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "keystone/save.schema.json",
+  "title": "Keystone Save Slot",
+  "type": "object",
+  "required": ["v", "map", "pos", "hp", "maxHp", "inventory", "charges", "flags", "quests"],
+  "additionalProperties": false,
+  "properties": {
+    "v": { "const": 1 },
+    "map": { "type": "string" },
+    "pos": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "hp": { "type": "integer", "minimum": 0 },
+    "maxHp": { "type": "integer", "minimum": 1 },
+    "inventory": { "type": "array", "items": { "type": "string" } },
+    "charges": { "type": "integer", "minimum": 0 },
+    "flags": {
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    },
+    "quests": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["state"],
+        "additionalProperties": false,
+        "properties": {
+          "state": { "enum": ["active", "done"] },
+          "step": { "type": "integer", "minimum": 0 },
+          "counts": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}
