@@ -1,34 +1,34 @@
 {
-  "id": "hero",
-  "image": "hero_sheet.png",
-  "frameW": 160,
-  "frameH": 160,
-  "anchor": { "x": 80, "y": 140 },
+  "id": "enemy_husk",
+  "image": "enemy_husk_sheet.png",
+  "frameW": 128,
+  "frameH": 128,
+  "anchor": { "x": 64, "y": 108 },
   "footprint": { "r": 0.3 },
-  "hurtbox": { "w": 28, "h": 44 },
+  "hurtbox": { "w": 32, "h": 40 },
   "facings": { "drawn": ["SE", "NE"], "mirrored": { "SW": "SE", "NW": "NE" } },
   "animations": {
     "idle_SE": { "row": 0, "frames": 4, "fps": 6, "loop": true },
-    "walk_SE": { "row": 1, "frames": 8, "fps": 12, "loop": true },
+    "walk_SE": { "row": 1, "frames": 6, "fps": 12, "loop": true },
     "attack_SE": {
       "row": 2,
       "frames": 5,
-      "fps": 15,
+      "fps": 10,
       "loop": false,
-      "events": { "1": "hit_on", "4": "hit_off" }
+      "events": { "2": "hit_on", "4": "hit_off" }
     },
     "hurt_SE": { "row": 3, "frames": 2, "fps": 12, "loop": false },
-    "death_SE": { "row": 4, "frames": 6, "fps": 10, "loop": false },
+    "death_SE": { "row": 4, "frames": 4, "fps": 10, "loop": false },
     "idle_NE": { "row": 5, "frames": 4, "fps": 6, "loop": true },
-    "walk_NE": { "row": 6, "frames": 8, "fps": 12, "loop": true },
+    "walk_NE": { "row": 6, "frames": 6, "fps": 12, "loop": true },
     "attack_NE": {
       "row": 7,
       "frames": 5,
-      "fps": 15,
+      "fps": 10,
       "loop": false,
-      "events": { "1": "hit_on", "4": "hit_off" }
+      "events": { "2": "hit_on", "4": "hit_off" }
     },
     "hurt_NE": { "row": 8, "frames": 2, "fps": 12, "loop": false },
-    "death_NE": { "row": 9, "frames": 6, "fps": 10, "loop": false }
+    "death_NE": { "row": 9, "frames": 4, "fps": 10, "loop": false }
   }
 }

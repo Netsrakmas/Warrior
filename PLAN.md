@@ -3,7 +3,7 @@
 *Working title. An isometric action-adventure in the spirit of Minish Cap, on an Alundra-style ground plane.*
 
 **Platform:** Web, desktop keyboard first · **Stack:** Vite + PixiJS + TypeScript · **Deploy:** GitHub Pages
-**Status:** Phase 2 complete (M2) · **Last updated:** 2026-07-06
+**Status:** Phase 3 complete (M3) · **Last updated:** 2026-07-06
 
 > **How to use this document:** this file is the contract. Every phase ends with a **Gate** — hard acceptance criteria. Do not start the next phase until the gate is green. Anything not in §2 lives in §14 (Backlog). Adding scope means removing scope. Tick checklists in PRs so this stays a living document.
 
@@ -309,12 +309,12 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 ### Phase 3 — Combat core *(M3: the fun gate)*
 
-- [ ] Animation state machine driven by sprite JSON, incl. frame events
-- [ ] Sword: `hit_on/off` hitbox, damage, knockback impulse, hitstop (~60 ms), hit-flash
-- [ ] Player: HP, i-frames, hurt/death states, hearts UI, respawn
-- [ ] Enemy `husk`: patrol → aggro → chase → windup (telegraph!) → attack → cooldown
-- [ ] Pickups: heart, shard currency; drop tables
-- [ ] Feel pass: screen shake, hit spark placeholder, SFX stubs (Web Audio synth)
+- [x] Animation state machine driven by sprite JSON, incl. frame events
+- [x] Sword: `hit_on/off` hitbox, damage, knockback impulse, hitstop (~60 ms), i-frame flicker
+- [x] Player: HP, i-frames, hurt/death states, hearts UI, respawn
+- [x] Enemy `husk`: patrol → aggro → chase → windup (telegraph!) → attack → cooldown
+- [x] Pickups: heart, shard currency; drop tables (seeded RNG, deterministic in test mode)
+- [x] Feel pass: screen shake, hit spark placeholder, SFX stubs (Web Audio synth)
 
 **Gate:** the 30-second loop is genuinely fun in grey-box, judged honestly. Measurables: input→swing < 100 ms; enemy telegraphs readable; zero sort glitches mid-combat. **If this gate fails, stop and fix — do not proceed.**
 

@@ -34,6 +34,14 @@ export function depthOf(wx: number, wy: number): number {
 
 export type Facing = 'SE' | 'NE' | 'SW' | 'NW';
 
+/** Unit world-space direction for each facing. */
+export const FACING_DIRS: Record<Facing, Vec2> = {
+  SE: { x: 1, y: 0 },
+  SW: { x: 0, y: 1 },
+  NW: { x: -1, y: 0 },
+  NE: { x: 0, y: -1 },
+};
+
 /**
  * Nearest of 4 facings for a world-space direction vector.
  * World +x runs screen down-right (SE); world +y runs screen down-left (SW).
