@@ -298,6 +298,7 @@ export class Game {
         this.scene.player.maxHp,
         this.state.shards,
         this.state.countItem('key'),
+        this.state.charges,
         dt,
         view.width,
       );

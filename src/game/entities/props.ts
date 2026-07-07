@@ -121,6 +121,12 @@ export class Chest implements Interactable {
       env.state.maxHp += 2;
       env.state.hp = env.state.maxHp;
       env.toast('Got a Heart Container! Max hearts up!');
+    } else if (this.item === 'charge') {
+      env.state.charges += 3;
+      env.toast('Got 3 Resonant Charges! (X to detonate)');
+    } else if (this.item === 'shard') {
+      env.state.shards += 5;
+      env.toast('Got 5 shards!');
     } else {
       env.state.addItem(this.item);
       env.toast(`Got ${this.item.replace(/_/g, ' ')}!`);
@@ -323,6 +329,40 @@ export class PushBlock {
     const s = worldToScreen(this.x, this.y);
     this.view.position.set(s.x, s.y);
     this.view.zIndex = depthOf(this.x, this.y); // sorts correctly mid-push (PLAN §9 P4)
+  }
+}
+
+/** Charge plate: latches its flag when a Resonant Charge detonates nearby. */
+export class ChargePlate {
+  readonly view = new Container();
+  readonly x: number;
+  readonly y: number;
+  private readonly flag: string;
+  private readonly g = new Graphics();
+  private drawnOn: boolean | null = null;
+
+  constructor(tx: number, ty: number, props: Record<string, unknown>) {
+    this.x = tx + 0.5;
+    this.y = ty + 0.5;
+    this.flag = (props.flag as string) ?? `f_chargeplate_${tx}_${ty}`;
+    this.view.addChild(this.g);
+    const s = worldToScreen(this.x, this.y);
+    this.view.position.set(s.x, s.y);
+    this.view.zIndex = depthOf(this.x, this.y) - 0.4;
+  }
+
+  trigger(env: AdventureEnv): void {
+    env.state.flags.set(this.flag);
+  }
+
+  update(env: AdventureEnv): void {
+    const on = env.state.flags.get(this.flag);
+    if (this.drawnOn === on) return;
+    this.drawnOn = on;
+    this.g.clear();
+    const c = on ? 0x5ad9c8 : 0x2a6b62;
+    this.g.poly([0, -18, 36, 0, 0, 18, -36, 0]).fill(c).stroke({ width: 2, color: 0x1a4a42 });
+    this.g.circle(0, 0, on ? 8 : 5).fill(on ? 0xd8fff8 : 0x1a4a42);
   }
 }
 

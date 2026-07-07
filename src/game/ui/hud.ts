@@ -24,7 +24,15 @@ export class Hud {
     });
     this.keyText.position.set(100, 44);
     this.container.addChild(this.keyText);
+    this.chargeText = new Text({
+      text: '',
+      style: { fill: 0x5ad9c8, fontSize: 18, fontFamily: 'monospace', fontWeight: 'bold' },
+    });
+    this.chargeText.position.set(170, 44);
+    this.container.addChild(this.chargeText);
   }
+
+  private readonly chargeText: Text;
 
   toast(msg: string): void {
     const t = new Text({
@@ -35,8 +43,16 @@ export class Hud {
     this.container.addChild(t);
   }
 
-  update(hp: number, maxHp: number, shards: number, keys: number, dt: number, viewW: number): void {
-    const key = `${hp}/${maxHp}/${shards}/${keys}`;
+  update(
+    hp: number,
+    maxHp: number,
+    shards: number,
+    keys: number,
+    charges: number,
+    dt: number,
+    viewW: number,
+  ): void {
+    const key = `${hp}/${maxHp}/${shards}/${keys}/${charges}`;
     if (key !== this.lastKey) {
       this.lastKey = key;
       this.heartsG.clear();
@@ -53,6 +69,7 @@ export class Hud {
       }
       this.shardText.text = `◆ ${shards}`;
       this.keyText.text = keys > 0 ? `⚿ ${keys}` : '';
+      this.chargeText.text = charges > 0 ? `⚡ ${charges}` : '';
     }
 
     for (let i = this.toasts.length - 1; i >= 0; i--) {

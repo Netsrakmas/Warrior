@@ -42,7 +42,12 @@ export interface HuskCtx {
   audio: AudioStub;
   rng: Rng;
   spawnPickup(type: PickupType, x: number, y: number): void;
+  /** dir is normalized; used by ranged enemies (spitter). */
+  spawnProjectile(x: number, y: number, dirX: number, dirY: number): void;
 }
+
+/** All enemy types share the husk's context. */
+export type EnemyCtx = HuskCtx;
 
 /**
  * The husk: patrol → aggro → chase → windup (telegraph!) → attack → cooldown.
@@ -50,6 +55,7 @@ export interface HuskCtx {
  * before hit_on ARE the telegraph (PLAN §9 Phase 3).
  */
 export class Husk implements Combatant {
+  readonly kind = 'enemy_husk';
   readonly view = new Container();
   x: number;
   y: number;

@@ -65,13 +65,12 @@ test('sword kills a husk in three hits and loot drops', async ({ page }) => {
   // next to the corpse, so count collected + still-on-ground together.
   expect(stats.shards + stats.pickupsOnGround).toBeGreaterThan(0);
 
-  // Walk over the drops: they magnet + collect.
-  const drop = await page.evaluate(() => {
-    const g = window.__game!;
-    const e = g.getEnemies(); // remaining enemy list excludes the dead one after its anim
-    return e.length;
-  });
-  expect(drop).toBeLessThanOrEqual(2);
+  // The dead husk leaves the enemy list once its death animation finishes.
+  await page.waitForFunction(
+    () => window.__game!.getEnemies().filter((e) => e.kind === 'enemy_husk').length === 2,
+    undefined,
+    { timeout: 3000 },
+  );
   await page.evaluate(() => {
     // teleport roughly where the husk died — pickups magnet from 1.2 tiles
     window.__game!.teleport!(8.5, 12.5);

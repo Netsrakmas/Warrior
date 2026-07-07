@@ -3,7 +3,7 @@
 *Working title. An isometric action-adventure in the spirit of Minish Cap, on an Alundra-style ground plane.*
 
 **Platform:** Web, desktop keyboard first · **Stack:** Vite + PixiJS + TypeScript · **Deploy:** GitHub Pages
-**Status:** Phase 4 complete (M4, systems-complete) · **Last updated:** 2026-07-07
+**Status:** Phase 4 complete (M4) + art-independent P5/P6 systems done (tint, charges, spitter/skitter) · **Last updated:** 2026-07-07
 
 > **How to use this document:** this file is the contract. Every phase ends with a **Gate** — hard acceptance criteria. Do not start the next phase until the gate is green. Anything not in §2 lives in §14 (Backlog). Adding scope means removing scope. Tick checklists in PRs so this stays a living document.
 
@@ -337,7 +337,7 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 - [ ] Hero full set via ComfyUI pipeline (§10); assemble in sprite tool
 - [ ] Husk full set; item/pickup sprites; blob shadows on; outline check
 - [ ] Texture atlas packing; replace every grey-box asset in the slice
-- [ ] Restoration desaturation tint wired to a debug flag
+- [x] Restoration desaturation tint wired to region `restoredFlag` (greybox_01 restores on `q1_done`; test hook via `setFlag`)
 
 **Gate:** the Phase-4 slice fully skinned, coherent palette, nothing grey-box on screen; still 60 fps.
 
@@ -345,8 +345,8 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 - [ ] World layout doc (one page: regions, gates, quest flow diagram)
 - [ ] Build Verdant Meadow, Sunken Ruins, Grey Spire in the editor
-- [ ] Remaining enemies (spitter, skitter) + **Warden** boss, 3 phases (§11.4)
-- [ ] Resonant Charge item + cracked-stone gating + charge-plates
+- [ ] Remaining enemies + **Warden** boss, 3 phases (§11.4) — *spitter & skitter done (grey-box), Warden pending*
+- [x] Resonant Charge item + cracked-stone gating + charge-plates *(built early — art-independent)*
 - [ ] All NPCs placed; dialogue written; Q1–Q6 + 2 side quests wired
 - [ ] Intro scene, two ending scenes (scripted dialogue + tint changes — no cutscene engine)
 - [ ] Balance pass: HP/damage curve in a table, tuned by playthrough

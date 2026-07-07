@@ -8,12 +8,13 @@ import type { SceneAssets } from './game/scenes/world';
 import type { MapData } from './game/types';
 import type { Facing } from './engine/iso';
 import type { SpriteDef } from './engine/anim';
-import type { HuskState } from './game/entities/husk';
 import type { QuestProgress } from './game/state';
 import type { QuestDefs } from './game/systems/quests';
 import type { DialogueDefs } from './game/systems/dialogue';
 import heroDef from './data/sprites/hero.json';
 import huskDef from './data/sprites/enemy_husk.json';
+import spitterDef from './data/sprites/enemy_spitter.json';
+import skitterDef from './data/sprites/enemy_skitter.json';
 import questsData from './data/quests.json';
 import dialogueData from './data/dialogue.json';
 
@@ -32,8 +33,9 @@ export interface GameDebugHooks {
     state: string;
     deaths: number;
   };
-  getEnemies: () => { x: number; y: number; hp: number; state: HuskState }[];
-  getStats: () => { shards: number; kills: number; pickupsOnGround: number };
+  getEnemies: () => { kind: string; x: number; y: number; hp: number; state: string }[];
+  getStats: () => { shards: number; kills: number; pickupsOnGround: number; charges: number };
+  getRestore: () => { flag: string | null; drainT: number };
   getQuests: () => Record<string, QuestProgress>;
   getInventory: () => string[];
   getFlag: (flag: string) => boolean;
@@ -47,6 +49,8 @@ export interface GameDebugHooks {
   loadMap: (map: MapData) => void;
   /** Test-mode only: place the player somewhere exact. */
   teleport?: (x: number, y: number) => void;
+  /** Test-mode only: set a world flag directly. */
+  setFlag?: (flag: string, value?: boolean) => void;
 }
 
 declare global {
@@ -76,15 +80,20 @@ async function boot(): Promise<void> {
   root.appendChild(app.canvas);
 
   const base = import.meta.env.BASE_URL;
-  const [heroSheet, huskSheet] = await Promise.all([
+  const [heroSheet, huskSheet, spitterSheet, skitterSheet] = await Promise.all([
     Assets.load<Texture>(`${base}assets/hero_sheet.png`),
     Assets.load<Texture>(`${base}assets/enemy_husk_sheet.png`),
+    Assets.load<Texture>(`${base}assets/enemy_spitter_sheet.png`),
+    Assets.load<Texture>(`${base}assets/enemy_skitter_sheet.png`),
   ]);
-  heroSheet.source.scaleMode = 'nearest';
-  huskSheet.source.scaleMode = 'nearest';
+  for (const t of [heroSheet, huskSheet, spitterSheet, skitterSheet]) {
+    t.source.scaleMode = 'nearest';
+  }
   const assets: SceneAssets = {
     hero: { def: heroDef as SpriteDef, sheet: heroSheet },
     husk: { def: huskDef as SpriteDef, sheet: huskSheet },
+    spitter: { def: spitterDef as SpriteDef, sheet: spitterSheet },
+    skitter: { def: skitterDef as SpriteDef, sheet: skitterSheet },
   };
 
   const services = {
@@ -149,11 +158,22 @@ async function boot(): Promise<void> {
       };
     },
     getEnemies: () =>
-      (game.scene?.enemies ?? []).map((e) => ({ x: e.x, y: e.y, hp: e.hp, state: e.state })),
+      (game.scene?.enemies ?? []).map((e) => ({
+        kind: e.kind,
+        x: e.x,
+        y: e.y,
+        hp: e.hp,
+        state: e.state,
+      })),
     getStats: () => ({
       shards: game.state.shards,
       kills: game.scene?.kills ?? 0,
       pickupsOnGround: game.scene?.pickups.length ?? 0,
+      charges: game.state.charges,
+    }),
+    getRestore: () => ({
+      flag: game.scene?.map.ambient?.restoredFlag ?? null,
+      drainT: game.scene?.drainT ?? 0,
     }),
     getQuests: () => game.state.quests,
     getInventory: () => [...game.state.inventory],
@@ -174,7 +194,10 @@ async function boot(): Promise<void> {
     },
     loadMap: (map) => game.loadMapData(map),
   };
-  if (testMode) hooks.teleport = (x, y) => game.scene?.player.teleport(x, y);
+  if (testMode) {
+    hooks.teleport = (x, y) => game.scene?.player.teleport(x, y);
+    hooks.setFlag = (flag, value = true) => game.state.flags.set(flag, value);
+  }
   window.__game = hooks;
 }
 
