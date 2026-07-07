@@ -13,6 +13,7 @@ import { Hud } from './ui/hud';
 import { Journal } from './ui/journal';
 import { DialogueBox } from './ui/dialoguebox';
 import { Screen, Fader } from './ui/screens';
+import { TouchControls } from './ui/touch';
 import type { MenuItem } from './ui/menu';
 
 export type GameMode = 'title' | 'playing' | 'gameover';
@@ -33,6 +34,7 @@ export class Game {
   readonly hud = new Hud();
   readonly journal = new Journal();
   readonly dialogue = new DialogueBox();
+  touch: TouchControls | null = null;
   readonly titleScreen = new Screen('KEYSTONE', 1);
   readonly pauseScreen = new Screen('PAUSED');
   readonly gameOverScreen = new Screen('FLATTENED');
@@ -49,6 +51,7 @@ export class Game {
     private readonly questDefs: QuestDefs,
     private readonly dialogueDefs: DialogueDefs,
     storage: Storage,
+    touchEnabled = false,
   ) {
     this.quests = new QuestLog(questDefs, this.state);
     this.saves = new SaveManager(storage);
@@ -58,9 +61,13 @@ export class Game {
     }
     this.storage = storage;
 
+    this.uiRoot.addChild(this.hud.container, this.journal.container);
+    if (touchEnabled) {
+      this.touch = new TouchControls(input);
+      this.uiRoot.addChild(this.touch.container);
+    }
+    // Dialogue sits above the touch layer so box taps aren't eaten by the stick zone.
     this.uiRoot.addChild(
-      this.hud.container,
-      this.journal.container,
       this.dialogue.container,
       this.pauseScreen.container,
       this.gameOverScreen.container,
@@ -292,6 +299,7 @@ export class Game {
 
     this.fader.update(dt, view.width, view.height);
     this.journal.update(this.quests, view.width);
+    this.touch?.layout(view.width, view.height, this.mode === 'playing' && !this.paused);
     if (this.scene && this.mode !== 'title') {
       this.hud.update(
         this.scene.player.hp,

@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>KEYSTONE</title>
     <style>
       html,
@@ -13,6 +17,11 @@
         height: 100%;
         overflow: hidden;
         background: #1a1a24;
+        touch-action: none;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
       #app {
         width: 100%;
@@ -20,6 +29,7 @@
       }
       #app canvas {
         display: block;
+        touch-action: none;
       }
     </style>
   </head>

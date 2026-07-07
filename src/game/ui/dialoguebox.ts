@@ -33,6 +33,9 @@ export class DialogueBox {
       style: { fill: 0x8a8fa8, fontSize: 14, fontFamily: 'monospace' },
     });
     this.container.addChild(this.bg, this.portrait, this.nameTag, this.body, this.hint);
+    // Touch: tapping the box advances the conversation.
+    this.container.eventMode = 'static';
+    this.container.on('pointertap', () => this.advance());
   }
 
   get isOpen(): boolean {

@@ -47,6 +47,10 @@ export interface GameDebugHooks {
   getMapId: () => string;
   isDebugOverlayOn: () => boolean;
   isCellBlocked: (tx: number, ty: number) => boolean;
+  getTouch: () => {
+    enabled: boolean;
+    buttons: { code: string; x: number; y: number; r: number }[];
+  };
   /** Swap in a new map (used by the editor round-trip test). */
   loadMap: (map: MapData) => void;
   /** Test-mode only: place the player somewhere exact. */
@@ -70,6 +74,10 @@ const params = new URLSearchParams(window.location.search);
 const testMode = params.get('test') === '1';
 // In test mode we skip the title screen unless the test asks for it.
 const wantTitle = params.get('title') === '1';
+// Touch controls: auto-detected, overridable with ?touch=1 / ?touch=0.
+const touchEnabled =
+  params.get('touch') === '1' ||
+  (params.get('touch') !== '0' && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
 
 async function boot(): Promise<void> {
   const app = new Application();
@@ -120,6 +128,7 @@ async function boot(): Promise<void> {
     questsData as QuestDefs,
     dialogueData as DialogueDefs,
     window.localStorage,
+    touchEnabled,
   );
   if (testMode && !wantTitle) game.newGame();
 
@@ -204,6 +213,10 @@ async function boot(): Promise<void> {
       const row = grid.cells[ty];
       return row === undefined || row[tx] === undefined || row[tx] !== 0;
     },
+    getTouch: () => ({
+      enabled: game.touch !== null,
+      buttons: game.touch?.debugInfo() ?? [],
+    }),
     loadMap: (map) => game.loadMapData(map),
   };
   if (testMode) {

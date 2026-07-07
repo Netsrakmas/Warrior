@@ -18,6 +18,8 @@ const KEY_DIRS: Record<string, Vec2> = {
 
 export class Input {
   private down = new Set<string>();
+  /** Analog movement intent from the touch stick; overrides keyboard axes. */
+  private analog: Vec2 | null = null;
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (KEY_DIRS[e.code] || e.code === 'F3' || e.code === 'Space' || e.code === 'Tab')
       e.preventDefault();
@@ -46,6 +48,20 @@ export class Input {
     return this.down.has(code);
   }
 
+  /** Virtual key press/release (touch buttons); flows through justPressed too. */
+  virtualDown(code: string): void {
+    this.down.add(code);
+  }
+
+  virtualUp(code: string): void {
+    this.down.delete(code);
+  }
+
+  /** Set (or clear with null) the touch stick's screen-space intent, length ≤ 1. */
+  setAnalog(v: Vec2 | null): void {
+    this.analog = v && (v.x !== 0 || v.y !== 0) ? v : null;
+  }
+
   /** Consume a one-shot press (returns true once per physical press). */
   private consumed = new Set<string>();
   justPressed(code: string): boolean {
@@ -57,8 +73,9 @@ export class Input {
     return false;
   }
 
-  /** Raw screen-space intent from held keys, each axis in {-1, 0, 1}. */
+  /** Screen-space intent: analog stick when active, else held keys in {-1, 0, 1}. */
   screenIntent(): Vec2 {
+    if (this.analog) return this.analog;
     let x = 0;
     let y = 0;
     for (const [code, dir] of Object.entries(KEY_DIRS)) {

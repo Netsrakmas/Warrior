@@ -35,6 +35,21 @@ export class MenuList {
         },
       });
       t.position.set(28, i * (this.fontSize + 14));
+      if (!item.disabled) {
+        // Touch/mouse: tapping an item selects and activates it.
+        t.eventMode = 'static';
+        t.cursor = 'pointer';
+        t.on('pointertap', () => {
+          this.index = i;
+          this.drawCursor();
+          if (item.adjust) {
+            item.label = item.adjust(1);
+            t.text = item.label;
+          } else {
+            item.action?.();
+          }
+        });
+      }
       this.texts.push(t);
       this.container.addChild(t);
     });

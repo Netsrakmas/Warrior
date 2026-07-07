@@ -455,7 +455,7 @@ Phase 1: slow sword patterns, punishable windups. Phase 2: summons husks + grey 
 
 ## 14. Backlog (v1.1+)
 
-Raised platforms (visual first, then collision) · gamepad · touch controls (virtual stick + 2 buttons) · NL localization (groep-4-friendly for the home audience) · minimap · swimming/water traversal · weather · more enemy variants via palette/behaviour swaps · NG+ · autotiling in the map editor · in-editor playtest button · itch.io mirror.
+Raised platforms (visual first, then collision) · gamepad · ~~touch controls (virtual stick + 2 buttons)~~ *(pulled forward: shipped as virtual stick + 5 buttons for on-device testing)* · NL localization (groep-4-friendly for the home audience) · minimap · swimming/water traversal · weather · more enemy variants via palette/behaviour swaps · NG+ · autotiling in the map editor · in-editor playtest button · itch.io mirror.
 
 ---
 
