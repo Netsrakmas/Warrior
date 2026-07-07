@@ -345,7 +345,7 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 - [ ] World layout doc (one page: regions, gates, quest flow diagram)
 - [ ] Build Verdant Meadow, Sunken Ruins, Grey Spire in the editor
-- [ ] Remaining enemies + **Warden** boss, 3 phases (§11.4) — *spitter & skitter done (grey-box), Warden pending*
+- [x] Remaining enemies + **Warden** boss, 3 phases (§11.4) — *all built grey-box; P3 arena hazards approximated with denser shockwaves pending art*
 - [x] Resonant Charge item + cracked-stone gating + charge-plates *(built early — art-independent)*
 - [ ] All NPCs placed; dialogue written; Q1–Q6 + 2 side quests wired
 - [ ] Intro scene, two ending scenes (scripted dialogue + tint changes — no cutscene engine)

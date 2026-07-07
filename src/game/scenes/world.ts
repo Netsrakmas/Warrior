@@ -22,7 +22,9 @@ import { Player, type HeroAssets, type PlayerCtx } from '../entities/player';
 import { Husk, type EnemyCtx } from '../entities/husk';
 import { Spitter } from '../entities/spitter';
 import { Skitter } from '../entities/skitter';
+import { Warden } from '../entities/warden';
 import { Projectile } from '../entities/projectile';
+import { Shockwave } from '../entities/shockwave';
 import { Pickup, type PickupType } from '../entities/pickup';
 import type { Hit } from '../systems/combat';
 import {
@@ -46,6 +48,7 @@ export interface SceneAssets {
   husk?: EnemyAssets;
   spitter?: EnemyAssets;
   skitter?: EnemyAssets;
+  warden?: EnemyAssets;
 }
 
 export interface SceneServices {
@@ -74,6 +77,9 @@ export interface Enemy {
   rollDrops(ctx: EnemyCtx): void;
   update(dt: number, ctx: EnemyCtx): void;
   syncView(alpha: number): void;
+  /** bosses: flags set on defeat; charge blasts call stun() when present. */
+  defeatFlags?: string[];
+  stun?(): void;
 }
 
 const INTERACT_KEYS = ['KeyE', 'Enter'];
@@ -90,6 +96,7 @@ export class WorldScene {
   readonly enemies: Enemy[] = [];
   readonly pickups: Pickup[] = [];
   readonly projectiles: Projectile[] = [];
+  readonly shockwaves: Shockwave[] = [];
   readonly npcs: Npc[] = [];
   readonly chests: Chest[] = [];
   readonly doors: Door[] = [];
@@ -107,6 +114,18 @@ export class WorldScene {
 
   private readonly objectLayer = new Container();
   private readonly prompt = new Container();
+  private readonly bossBar = new Container();
+  private readonly bossBarG = new Graphics();
+  private readonly bossBarText = new Text({
+    text: 'THE WARDEN',
+    style: {
+      fill: 0xd8dce8,
+      fontSize: 14,
+      fontFamily: 'monospace',
+      fontWeight: 'bold',
+      letterSpacing: 4,
+    },
+  });
   private readonly playerCtx: PlayerCtx;
   private readonly enemyCtx: EnemyCtx;
   private readonly firedFlagTriggers = new Set<MapTrigger>();
@@ -177,6 +196,13 @@ export class WorldScene {
           if (!assets.skitter) break;
           this.addEnemy(
             new Skitter(e.tx + 0.5, e.ty + 0.5, assets.skitter.def, assets.skitter.sheet),
+          );
+          break;
+        }
+        case 'boss_warden': {
+          if (!assets.warden) break;
+          this.addEnemy(
+            new Warden(e.tx + 0.5, e.ty + 0.5, assets.warden.def, assets.warden.sheet, props),
           );
           break;
         }
@@ -254,6 +280,12 @@ export class WorldScene {
     this.container.addChild(this.debug.worldLayer);
     this.uiLayer.addChild(this.debug.screenLayer);
 
+    // Boss HP bar (visible while a boss is alive on this map).
+    this.bossBar.addChild(this.bossBarG, this.bossBarText);
+    this.bossBarText.anchor.set(0.5, 0);
+    this.bossBar.visible = false;
+    this.uiLayer.addChild(this.bossBar);
+
     this.playerCtx = {
       grid: this.grid,
       enemies: this.enemies,
@@ -277,6 +309,20 @@ export class WorldScene {
         this.projectiles.push(p);
         this.objectLayer.addChild(p.view);
       },
+      spawnEnemy: (kind, x, y) => {
+        if (kind === 'enemy_husk' && assets.husk) {
+          const husk = new Husk(x, y, assets.husk.def, assets.husk.sheet);
+          this.addEnemy(husk);
+          this.fx.spark(x, y, 0x9aa0b8);
+        }
+      },
+      spawnShockwave: (x, y) => {
+        const w = new Shockwave(x, y);
+        this.shockwaves.push(w);
+        this.objectLayer.addChild(w.view);
+        this.fx.shake(4, 0.15);
+      },
+      countAlive: (kind) => this.enemies.filter((e) => e.kind === kind && e.alive).length,
     };
 
     this.camera = new Camera({
@@ -307,6 +353,17 @@ export class WorldScene {
     this.kills++;
     this.env.quests.notify('kill', enemy.kind);
     enemy.rollDrops(this.enemyCtx);
+    for (const flag of enemy.defeatFlags ?? []) this.env.state.flags.set(flag);
+  }
+
+  /** The Warden, when this map has one. */
+  get boss(): Warden | null {
+    return (this.enemies.find((e) => e.kind === 'boss_warden') as Warden | undefined) ?? null;
+  }
+
+  /** Test hook path: credit a kill applied outside the normal combat flow. */
+  forceRegisterKill(enemy: Enemy): void {
+    this.registerKill(enemy);
   }
 
   spawnPickup(type: PickupType, x: number, y: number): void {
@@ -364,6 +421,7 @@ export class WorldScene {
       if (Math.hypot(enemy.x - px, enemy.y - py) > BLAST_RADIUS) continue;
       const landed = enemy.applyHit({ damage: 2, fromX: px, fromY: py, knockback: 8 });
       if (landed) {
+        enemy.stun?.(); // charge blasts stun the Warden (item reuse, §11.4)
         this.fx.spark(enemy.x, enemy.y);
         if (!enemy.alive) this.registerKill(enemy);
       }
@@ -463,6 +521,15 @@ export class WorldScene {
         }
       }
 
+      for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+        const w = this.shockwaves[i]!;
+        w.update(dt, this.player);
+        if (w.dead) {
+          w.view.destroy();
+          this.shockwaves.splice(i, 1);
+        }
+      }
+
       for (let i = this.pickups.length - 1; i >= 0; i--) {
         const p = this.pickups[i]!;
         if (p.update(dt, this.player.x, this.player.y) && this.player.alive) {
@@ -540,6 +607,25 @@ export class WorldScene {
       this.view.height,
     );
     this.ground.cull(viewRect);
+
+    const boss = this.boss;
+    this.bossBar.visible = boss !== null && boss.alive;
+    if (boss && boss.alive) {
+      const w = Math.min(420, this.view.width - 80);
+      const x = (this.view.width - w) / 2;
+      this.bossBarG.clear();
+      this.bossBarG.roundRect(x, 26, w, 14, 6).fill(0x1a1a26).stroke({
+        width: 2,
+        color: 0x5a5f78,
+      });
+      const fill = Math.max(0, boss.hp / boss.maxHp);
+      if (fill > 0) {
+        this.bossBarG
+          .roundRect(x + 2, 28, (w - 4) * fill, 10, 4)
+          .fill(boss.phase === 3 ? 0xd94a5a : boss.phase === 2 ? 0xc88a4a : 0x9aa0b8);
+      }
+      this.bossBarText.position.set(this.view.width / 2, 44);
+    }
 
     this.debug.update(
       fps,

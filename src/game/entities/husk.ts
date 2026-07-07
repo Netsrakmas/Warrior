@@ -44,6 +44,10 @@ export interface HuskCtx {
   spawnPickup(type: PickupType, x: number, y: number): void;
   /** dir is normalized; used by ranged enemies (spitter). */
   spawnProjectile(x: number, y: number, dirX: number, dirY: number): void;
+  /** Used by the Warden's summons; no-op for unknown kinds. */
+  spawnEnemy(kind: string, x: number, y: number): void;
+  spawnShockwave(x: number, y: number): void;
+  countAlive(kind: string): number;
 }
 
 /** All enemy types share the husk's context. */

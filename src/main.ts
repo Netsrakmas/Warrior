@@ -15,6 +15,7 @@ import heroDef from './data/sprites/hero.json';
 import huskDef from './data/sprites/enemy_husk.json';
 import spitterDef from './data/sprites/enemy_spitter.json';
 import skitterDef from './data/sprites/enemy_skitter.json';
+import wardenDef from './data/sprites/boss_warden.json';
 import questsData from './data/quests.json';
 import dialogueData from './data/dialogue.json';
 
@@ -36,6 +37,7 @@ export interface GameDebugHooks {
   getEnemies: () => { kind: string; x: number; y: number; hp: number; state: string }[];
   getStats: () => { shards: number; kills: number; pickupsOnGround: number; charges: number };
   getRestore: () => { flag: string | null; drainT: number };
+  getBoss: () => { hp: number; maxHp: number; phase: number; state: string } | null;
   getQuests: () => Record<string, QuestProgress>;
   getInventory: () => string[];
   getFlag: (flag: string) => boolean;
@@ -51,6 +53,10 @@ export interface GameDebugHooks {
   teleport?: (x: number, y: number) => void;
   /** Test-mode only: set a world flag directly. */
   setFlag?: (flag: string, value?: boolean) => void;
+  /** Test-mode only: damage an enemy of the given kind. */
+  hurtEnemy?: (kind: string, damage: number) => boolean;
+  /** Test-mode only: add resonant charges. */
+  grantCharges?: (n: number) => void;
 }
 
 declare global {
@@ -80,13 +86,14 @@ async function boot(): Promise<void> {
   root.appendChild(app.canvas);
 
   const base = import.meta.env.BASE_URL;
-  const [heroSheet, huskSheet, spitterSheet, skitterSheet] = await Promise.all([
+  const [heroSheet, huskSheet, spitterSheet, skitterSheet, wardenSheet] = await Promise.all([
     Assets.load<Texture>(`${base}assets/hero_sheet.png`),
     Assets.load<Texture>(`${base}assets/enemy_husk_sheet.png`),
     Assets.load<Texture>(`${base}assets/enemy_spitter_sheet.png`),
     Assets.load<Texture>(`${base}assets/enemy_skitter_sheet.png`),
+    Assets.load<Texture>(`${base}assets/boss_warden_sheet.png`),
   ]);
-  for (const t of [heroSheet, huskSheet, spitterSheet, skitterSheet]) {
+  for (const t of [heroSheet, huskSheet, spitterSheet, skitterSheet, wardenSheet]) {
     t.source.scaleMode = 'nearest';
   }
   const assets: SceneAssets = {
@@ -94,6 +101,7 @@ async function boot(): Promise<void> {
     husk: { def: huskDef as SpriteDef, sheet: huskSheet },
     spitter: { def: spitterDef as SpriteDef, sheet: spitterSheet },
     skitter: { def: skitterDef as SpriteDef, sheet: skitterSheet },
+    warden: { def: wardenDef as SpriteDef, sheet: wardenSheet },
   };
 
   const services = {
@@ -175,6 +183,10 @@ async function boot(): Promise<void> {
       flag: game.scene?.map.ambient?.restoredFlag ?? null,
       drainT: game.scene?.drainT ?? 0,
     }),
+    getBoss: () => {
+      const b = game.scene?.boss;
+      return b ? { hp: b.hp, maxHp: b.maxHp, phase: b.phase, state: b.state } : null;
+    },
     getQuests: () => game.state.quests,
     getInventory: () => [...game.state.inventory],
     getFlag: (flag) => game.state.flags.get(flag),
@@ -197,6 +209,16 @@ async function boot(): Promise<void> {
   if (testMode) {
     hooks.teleport = (x, y) => game.scene?.player.teleport(x, y);
     hooks.setFlag = (flag, value = true) => game.state.flags.set(flag, value);
+    hooks.hurtEnemy = (kind, damage) => {
+      const enemy = game.scene?.enemies.find((e) => e.kind === kind && e.alive);
+      if (!enemy) return false;
+      const landed = enemy.applyHit({ damage, fromX: enemy.x - 1, fromY: enemy.y, knockback: 0 });
+      if (landed && !enemy.alive) game.scene?.forceRegisterKill(enemy);
+      return landed;
+    };
+    hooks.grantCharges = (n) => {
+      game.state.charges += n;
+    };
   }
   window.__game = hooks;
 }

@@ -1,0 +1,62 @@
+{
+  "id": "boss_warden",
+  "image": "boss_warden_sheet.png",
+  "frameW": 160,
+  "frameH": 160,
+  "anchor": { "x": 80, "y": 140 },
+  "footprint": { "r": 0.45 },
+  "hurtbox": { "w": 60, "h": 110 },
+  "facings": { "drawn": ["SE", "NE"], "mirrored": { "SW": "SE", "NW": "NE" } },
+  "animations": {
+    "idle_SE": { "row": 0, "frames": 4, "fps": 6, "loop": true },
+    "walk_SE": { "row": 1, "frames": 6, "fps": 10, "loop": true },
+    "attack_SE": {
+      "row": 2,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "hit_on", "5": "hit_off" }
+    },
+    "hurt_SE": { "row": 3, "frames": 2, "fps": 12, "loop": false },
+    "death_SE": { "row": 4, "frames": 8, "fps": 8, "loop": false },
+    "summon_SE": {
+      "row": 5,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "summon" }
+    },
+    "transition_SE": {
+      "row": 6,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "shockwave" }
+    },
+    "idle_NE": { "row": 7, "frames": 4, "fps": 6, "loop": true },
+    "walk_NE": { "row": 8, "frames": 6, "fps": 10, "loop": true },
+    "attack_NE": {
+      "row": 9,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "hit_on", "5": "hit_off" }
+    },
+    "hurt_NE": { "row": 10, "frames": 2, "fps": 12, "loop": false },
+    "death_NE": { "row": 11, "frames": 8, "fps": 8, "loop": false },
+    "summon_NE": {
+      "row": 12,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "summon" }
+    },
+    "transition_NE": {
+      "row": 13,
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "events": { "3": "shockwave" }
+    }
+  }
+}
