@@ -588,7 +588,9 @@ export class WorldScene {
     }
 
     const target = worldToScreen(this.player.x, this.player.y);
-    this.camera.update(target.x, target.y, this.view.width, this.view.height);
+    // Look-ahead follows the screen-space movement intent while alive.
+    const look = this.player.alive ? this.input.screenIntent() : { x: 0, y: 0 };
+    this.camera.update(target.x, target.y, this.view.width, this.view.height, look);
   }
 
   render(alpha: number, fps: number): void {

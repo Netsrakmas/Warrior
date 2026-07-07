@@ -6,7 +6,7 @@ import { Rng } from './engine/rng';
 import { Game } from './game/game';
 import type { SceneAssets } from './game/scenes/world';
 import type { MapData } from './game/types';
-import type { Facing } from './engine/iso';
+import { worldToScreen, type Facing } from './engine/iso';
 import type { SpriteDef } from './engine/anim';
 import type { QuestProgress } from './game/state';
 import type { QuestDefs } from './game/systems/quests';
@@ -51,6 +51,8 @@ export interface GameDebugHooks {
     enabled: boolean;
     buttons: { code: string; x: number; y: number; r: number }[];
   };
+  /** Camera center vs player position, both in world-screen px (look-ahead checks). */
+  getCamera: () => { x: number; y: number; playerX: number; playerY: number };
   /** Swap in a new map (used by the editor round-trip test). */
   loadMap: (map: MapData) => void;
   /** Test-mode only: place the player somewhere exact. */
@@ -217,6 +219,12 @@ async function boot(): Promise<void> {
       enabled: game.touch !== null,
       buttons: game.touch?.debugInfo() ?? [],
     }),
+    getCamera: () => {
+      const s = game.scene;
+      if (!s) return { x: 0, y: 0, playerX: 0, playerY: 0 };
+      const p = worldToScreen(s.player.x, s.player.y);
+      return { x: s.camera.x, y: s.camera.y, playerX: p.x, playerY: p.y };
+    },
     loadMap: (map) => game.loadMapData(map),
   };
   if (testMode) {

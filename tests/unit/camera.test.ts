@@ -11,7 +11,7 @@ describe('camera (PLAN §7)', () => {
     cam.snapTo(0, 1024, VIEW_W, VIEW_H);
     const x0 = cam.x;
     const y0 = cam.y;
-    cam.update(x0 + 50, y0 + 30, VIEW_W, VIEW_H); // inside 120×80 deadzone
+    cam.update(x0 + 50, y0 + 30, VIEW_W, VIEW_H); // inside 60×40 deadzone
     expect(cam.x).toBe(x0);
     expect(cam.y).toBe(y0);
   });
@@ -39,6 +39,38 @@ describe('camera (PLAN §7)', () => {
     cam.snapTo(9999, 9999, VIEW_W, VIEW_H);
     expect(cam.x).toBe(0);
     expect(cam.y).toBe(50);
+  });
+
+  it('look-ahead: the view leads a moving target so incoming threats are visible', () => {
+    const cam = new Camera(BOUNDS);
+    cam.snapTo(0, 1024, VIEW_W, VIEW_H);
+    // Player standing still at (0,1024), pushing screen-right.
+    for (let i = 0; i < 400; i++) cam.update(0, 1024, VIEW_W, VIEW_H, { x: 1, y: 0 });
+    // Camera center should settle AHEAD of the player (beyond the deadzone),
+    // not lagging behind it.
+    expect(cam.x).toBeGreaterThan(60);
+    // Converged near lookAhead - deadzone: 170 - 60 = 110.
+    expect(cam.x).toBeGreaterThan(100);
+  });
+
+  it('look-ahead eases back to center when movement stops', () => {
+    const cam = new Camera(BOUNDS);
+    cam.snapTo(0, 1024, VIEW_W, VIEW_H);
+    for (let i = 0; i < 400; i++) cam.update(0, 1024, VIEW_W, VIEW_H, { x: 1, y: 0 });
+    const ahead = cam.x;
+    for (let i = 0; i < 600; i++) cam.update(0, 1024, VIEW_W, VIEW_H, { x: 0, y: 0 });
+    expect(cam.x).toBeLessThan(ahead);
+    // Back inside the deadzone around the resting player.
+    expect(Math.abs(cam.x)).toBeLessThanOrEqual(61);
+  });
+
+  it('look-ahead is capped on small (phone) views', () => {
+    const cam = new Camera(BOUNDS);
+    const w = 400; // small landscape phone half
+    cam.snapTo(0, 1024, w, 300);
+    for (let i = 0; i < 400; i++) cam.update(0, 1024, w, 300, { x: 1, y: 0 });
+    // Cap is 20% of view width = 80px → camera never leads past cap.
+    expect(cam.x).toBeLessThanOrEqual(80 + 1);
   });
 
   it('returns pixel-rounded offsets (no sprite shimmer)', () => {

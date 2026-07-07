@@ -57,6 +57,22 @@ test('depth key flips as the player circles a pillar', async ({ page }) => {
   expect(south.depth).toBeGreaterThan(pillarDepth); // draws in front of the pillar
 });
 
+test('camera look-ahead: the view leads the player while walking', async ({ page }) => {
+  await bootGame(page);
+  // Walk screen-right for a while; the camera center should end up AHEAD of
+  // the player (so incoming enemies are visible), not trailing behind.
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(1200);
+  const during = await page.evaluate(() => window.__game!.getCamera());
+  await page.keyboard.up('ArrowRight');
+  expect(during.x - during.playerX).toBeGreaterThan(40); // leading, not lagging
+
+  // At rest the camera settles back around the player.
+  await page.waitForTimeout(1500);
+  const rest = await page.evaluate(() => window.__game!.getCamera());
+  expect(Math.abs(rest.x - rest.playerX)).toBeLessThan(70);
+});
+
 test('ground chunks exist and cull outside the camera view', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 640 });
   await bootGame(page);
