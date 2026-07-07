@@ -19,7 +19,16 @@
           "properties": {
             "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
             "desc": { "type": "string" },
-            "count": { "type": "integer", "minimum": 1 }
+            "count": { "type": "integer", "minimum": 1 },
+            "on": {
+              "type": "object",
+              "required": ["event", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "event": { "type": "string" },
+                "type": { "type": "string" }
+              }
+            }
           }
         }
       },

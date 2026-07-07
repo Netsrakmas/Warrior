@@ -4,6 +4,8 @@ export type SfxName = 'swing' | 'hit' | 'hurt' | 'pickup' | 'enemy_die' | 'playe
 
 export class AudioStub {
   private ctx: AudioContext | null = null;
+  /** Master volume 0..1 (settings menu). */
+  volume = 0.8;
 
   constructor(private readonly muted: boolean) {}
 
@@ -23,10 +25,13 @@ export class AudioStub {
 
   play(name: SfxName): void {
     const ctx = this.ensure();
-    if (!ctx) return;
+    if (!ctx || this.volume <= 0) return;
     const t = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = this.volume;
+    master.connect(ctx.destination);
     const gain = ctx.createGain();
-    gain.connect(ctx.destination);
+    gain.connect(master);
     const osc = ctx.createOscillator();
     osc.connect(gain);
 

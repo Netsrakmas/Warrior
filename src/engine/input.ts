@@ -19,7 +19,8 @@ const KEY_DIRS: Record<string, Vec2> = {
 export class Input {
   private down = new Set<string>();
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (KEY_DIRS[e.code] || e.code === 'F3' || e.code === 'Space') e.preventDefault();
+    if (KEY_DIRS[e.code] || e.code === 'F3' || e.code === 'Space' || e.code === 'Tab')
+      e.preventDefault();
     this.down.add(e.code);
   };
   private readonly onKeyUp = (e: KeyboardEvent): void => {

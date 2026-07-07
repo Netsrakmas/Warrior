@@ -3,7 +3,7 @@
   "$id": "keystone/save.schema.json",
   "title": "Keystone Save Slot",
   "type": "object",
-  "required": ["v", "map", "pos", "hp", "maxHp", "inventory", "charges", "flags", "quests"],
+  "required": ["v", "map", "pos", "hp", "maxHp", "inventory", "charges", "shards", "flags", "quests"],
   "additionalProperties": false,
   "properties": {
     "v": { "const": 1 },
@@ -18,6 +18,7 @@
     "maxHp": { "type": "integer", "minimum": 1 },
     "inventory": { "type": "array", "items": { "type": "string" } },
     "charges": { "type": "integer", "minimum": 0 },
+    "shards": { "type": "integer", "minimum": 0 },
     "flags": {
       "type": "object",
       "additionalProperties": { "type": "boolean" }

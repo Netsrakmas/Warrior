@@ -3,7 +3,7 @@
 *Working title. An isometric action-adventure in the spirit of Minish Cap, on an Alundra-style ground plane.*
 
 **Platform:** Web, desktop keyboard first · **Stack:** Vite + PixiJS + TypeScript · **Deploy:** GitHub Pages
-**Status:** Phase 3 complete (M3) · **Last updated:** 2026-07-06
+**Status:** Phase 4 complete (M4, systems-complete) · **Last updated:** 2026-07-07
 
 > **How to use this document:** this file is the contract. Every phase ends with a **Gate** — hard acceptance criteria. Do not start the next phase until the gate is green. Anything not in §2 lives in §14 (Backlog). Adding scope means removing scope. Tick checklists in PRs so this stays a living document.
 
@@ -320,13 +320,13 @@ Effort shape, honestly: **P0–P4 (engine + tools + systems) is the predictable 
 
 ### Phase 4 — Adventure systems *(M4: systems-complete)*
 
-- [ ] Dialogue box (typewriter, name tag, portrait slot), interaction prompt
-- [ ] World-state flag store; triggers system (§6.1)
-- [ ] Quest engine + journal UI
-- [ ] Inventory + item gating; keys/doors; chests
-- [ ] Pressure plate + pushable block (block depth-sorts correctly while pushed)
-- [ ] Map transitions with fade + spawn points
-- [ ] Save/load, 3 slots; title / pause / game-over / settings (volume)
+- [x] Dialogue box (typewriter, name tag, portrait slot), interaction prompt
+- [x] World-state flag store; triggers system (§6.1)
+- [x] Quest engine + journal UI
+- [x] Inventory + item gating; keys/doors; chests
+- [x] Pressure plate + pushable block (block depth-sorts correctly while pushed)
+- [x] Map transitions with fade + spawn points
+- [x] Save/load, 3 slots; title / pause / game-over / settings (volume)
 
 **Gate:** on two grey-box maps, a fetch quest is completable start→finish; save mid-quest, reload, finish; transitions never strand the player.
 

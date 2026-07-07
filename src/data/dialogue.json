@@ -1,0 +1,59 @@
+{
+  "elder_done": {
+    "requires": { "questDone": "q1_wake_the_meadow" },
+    "lines": [
+      {
+        "who": "Elder Mira",
+        "text": "The range breathes easier without those husks. Thank you, child."
+      }
+    ]
+  },
+  "elder_return": {
+    "requires": { "questAt": { "id": "q1_wake_the_meadow", "step": "return_elder" } },
+    "lines": [
+      { "who": "Elder Mira", "text": "The husks are gone? Then there is hope for us yet." },
+      { "who": "Elder Mira", "text": "Rest now. The road ahead is longer than you know." }
+    ],
+    "completeStep": { "id": "q1_wake_the_meadow", "step": "return_elder" }
+  },
+  "elder_busy": {
+    "requires": { "questAt": { "id": "q1_wake_the_meadow", "step": "kill_husks" } },
+    "lines": [
+      { "who": "Elder Mira", "text": "The husks still wander the range. Be careful out there." }
+    ]
+  },
+  "elder_intro": {
+    "lines": [
+      { "who": "Elder Mira", "text": "The colour ran out of the meadow, child. You can see it, can't you?" },
+      { "who": "Elder Mira", "text": "The husks that wander this range were people once. Put them to rest — all three." }
+    ],
+    "setFlag": "f_met_elder",
+    "startQuest": "q1_wake_the_meadow",
+    "completeStep": { "id": "q1_wake_the_meadow", "step": "talk_elder" }
+  },
+  "pip_done": {
+    "requires": { "questDone": "s1_lost_kite" },
+    "lines": [{ "who": "Pip", "text": "Best. Kite. EVER. When I grow up I'm going to fly one on every roof!" }]
+  },
+  "pip_return": {
+    "requires": { "item": "kite", "questAt": { "id": "s1_lost_kite", "step": "return_kite" } },
+    "lines": [
+      { "who": "Pip", "text": "MY KITE! You found it! You're the best grey-fighter ever!" }
+    ],
+    "takeItem": "kite",
+    "completeStep": { "id": "s1_lost_kite", "step": "return_kite" }
+  },
+  "pip_waiting": {
+    "requires": { "questAt": { "id": "s1_lost_kite", "step": "find_kite" } },
+    "lines": [
+      { "who": "Pip", "text": "The wind took it east, past the old passage. It's teal with a long tail — you can't miss it!" }
+    ]
+  },
+  "pip_intro": {
+    "lines": [
+      { "who": "Pip", "text": "My kite! The wind grabbed it and dragged it east, through the passage!" },
+      { "who": "Pip", "text": "Please bring it back? It's the only colourful thing I have left." }
+    ],
+    "startQuest": "s1_lost_kite"
+  }
+}

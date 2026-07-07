@@ -23,8 +23,37 @@
         }
       },
       "setFlag": { "type": "string", "pattern": "^[a-z0-9_]+$" },
-      "startQuest": { "type": "string", "pattern": "^q[0-9s]+_[a-z0-9_]+$" },
-      "requiresFlag": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      "startQuest": { "type": "string", "pattern": "^[qs][0-9]+_[a-z0-9_]+$" },
+      "giveItem": { "type": "string" },
+      "takeItem": { "type": "string" },
+      "completeStep": {
+        "type": "object",
+        "required": ["id", "step"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "step": { "type": "string" }
+        }
+      },
+      "requires": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flag": { "type": "string" },
+          "notFlag": { "type": "string" },
+          "item": { "type": "string" },
+          "questAt": {
+            "type": "object",
+            "required": ["id", "step"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "step": { "type": "string" }
+            }
+          },
+          "questDone": { "type": "string" }
+        }
+      }
     }
   }
 }

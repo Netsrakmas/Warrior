@@ -47,6 +47,8 @@ export interface PlayerCtx {
   audio: AudioStub;
   /** called with each enemy killed by the sword this tick */
   onKill(enemy: Combatant): void;
+  /** called once when the death animation finishes */
+  onDeath(): void;
 }
 
 /** The hero: movement, sword combat driven by frame events, HP/i-frames/death. */
@@ -57,7 +59,7 @@ export class Player implements Combatant {
   facing: Facing = 'SE';
   readonly radius: number;
   hp = MAX_HP;
-  readonly maxHp = MAX_HP;
+  maxHp = MAX_HP;
   state: PlayerState = 'normal';
   deaths = 0;
 
@@ -74,7 +76,12 @@ export class Player implements Combatant {
   private prevX: number;
   private prevY: number;
 
-  constructor(spawnX: number, spawnY: number, assets?: HeroAssets) {
+  constructor(
+    spawnX: number,
+    spawnY: number,
+    assets?: HeroAssets,
+    vitals?: { hp: number; maxHp: number },
+  ) {
     this.x = spawnX;
     this.y = spawnY;
     this.spawnX = spawnX;
@@ -82,6 +89,10 @@ export class Player implements Combatant {
     this.prevX = spawnX;
     this.prevY = spawnY;
     this.radius = assets?.def.footprint.r ?? PLAYER_RADIUS;
+    if (vitals) {
+      this.maxHp = vitals.maxHp;
+      this.hp = Math.min(vitals.hp, vitals.maxHp);
+    }
 
     // Blob shadow (engine-drawn — PLAN §5.2).
     const shadow = new Graphics();
@@ -198,8 +209,10 @@ export class Player implements Combatant {
         break;
       }
       case 'dead': {
-        this.stateTimer -= dt;
-        if (this.stateTimer <= 0) this.respawn();
+        if (this.stateTimer > 0) {
+          this.stateTimer -= dt;
+          if (this.stateTimer <= 0) ctx.onDeath(); // Game shows the game-over screen
+        }
         break;
       }
     }
@@ -232,7 +245,8 @@ export class Player implements Combatant {
     }
   }
 
-  private respawn(): void {
+  /** Revive at the map spawn with full hearts (game-over → Continue). */
+  respawn(): void {
     this.hp = this.maxHp;
     this.state = 'normal';
     this.iframes = 1.5;
@@ -240,6 +254,12 @@ export class Player implements Combatant {
     this.kvy = 0;
     this.teleport(this.spawnX, this.spawnY);
     this.anim?.play('idle', this.facing, true);
+  }
+
+  /** Pull hp/maxHp changes made by adventure systems (heart containers, saves). */
+  syncFromState(state: { hp: number; maxHp: number }): void {
+    this.maxHp = state.maxHp;
+    this.hp = Math.min(state.hp, state.maxHp);
   }
 
   teleport(x: number, y: number): void {

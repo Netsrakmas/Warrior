@@ -141,7 +141,9 @@ test('husk aggros when the player is near and de-aggros when far', async ({ page
   });
 });
 
-test('player death respawns at spawn with full hearts', async ({ page }) => {
+test('player death shows game over; Continue respawns at spawn with full hearts', async ({
+  page,
+}) => {
   await bootGame(page);
   // Park the player inside the husk's reach and wait out 6 hits.
   test.setTimeout(60_000);
@@ -163,10 +165,20 @@ test('player death respawns at spawn with full hearts', async ({ page }) => {
     { timeout: 45_000, polling: 200 },
   );
 
+  // Death animation finishes → game-over screen.
+  await page.waitForFunction(() => window.__game!.getMode().mode === 'gameover', undefined, {
+    timeout: 5000,
+  });
+
+  // "Continue" is the first menu item.
+  await page.keyboard.press('Enter');
   await page.waitForFunction(
-    () => window.__game!.getPlayer().state === 'normal' && window.__game!.getPlayer().hp === 6,
+    () =>
+      window.__game!.getMode().mode === 'playing' &&
+      window.__game!.getPlayer().state === 'normal' &&
+      window.__game!.getPlayer().hp === 6,
     undefined,
-    { timeout: 5000 },
+    { timeout: 3000 },
   );
   const respawned = await page.evaluate(() => window.__game!.getPlayer());
   expect(respawned.deaths).toBe(1);

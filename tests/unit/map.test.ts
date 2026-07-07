@@ -20,13 +20,21 @@ describe('greybox_01 map data', () => {
     }
   });
 
-  it('has a solid border so the player cannot leave the map', () => {
+  it('has a solid border except the east passage, which is covered by a goto trigger', () => {
     const c = map.layers.collision;
     for (let i = 0; i < 32; i++) {
       expect(c[0]?.[i]).toBe(1);
       expect(c[31]?.[i]).toBe(1);
       expect(c[i]?.[0]).toBe(1);
-      expect(c[i]?.[31]).toBe(1);
+      const isPassage = i >= 14 && i <= 16;
+      expect(c[i]?.[31]).toBe(isPassage ? 0 : 1);
+    }
+    // Every walkable border tile must sit inside a goto trigger (no escape).
+    for (let y = 14; y <= 16; y++) {
+      const covered = (map.triggers ?? []).some(
+        (t) => t.action === 'goto' && 31 >= t.tx && 31 < t.tx + t.w && y >= t.ty && y < t.ty + t.h,
+      );
+      expect(covered).toBe(true);
     }
   });
 

@@ -1,0 +1,24 @@
+{
+  "q1_wake_the_meadow": {
+    "title": "Wake the Meadow",
+    "steps": [
+      { "id": "talk_elder", "desc": "Speak with Elder Mira." },
+      {
+        "id": "kill_husks",
+        "desc": "Clear the husks from the test range.",
+        "count": 3,
+        "on": { "event": "kill", "type": "enemy_husk" }
+      },
+      { "id": "return_elder", "desc": "Return to Elder Mira." }
+    ],
+    "reward": { "item": "none", "flag": "q1_done" }
+  },
+  "s1_lost_kite": {
+    "title": "Pip's Lost Kite",
+    "steps": [
+      { "id": "find_kite", "desc": "Find Pip's kite somewhere beyond the east passage." },
+      { "id": "return_kite", "desc": "Bring the kite back to Pip." }
+    ],
+    "reward": { "item": "none", "flag": "s1_done" }
+  }
+}

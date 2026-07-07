@@ -3,18 +3,24 @@ import { FixedLoop } from './engine/loop';
 import { Input } from './engine/input';
 import { AudioStub } from './engine/audio';
 import { Rng } from './engine/rng';
-import { WorldScene, type SceneAssets } from './game/scenes/world';
+import { Game } from './game/game';
+import type { SceneAssets } from './game/scenes/world';
 import type { MapData } from './game/types';
 import type { Facing } from './engine/iso';
 import type { SpriteDef } from './engine/anim';
 import type { HuskState } from './game/entities/husk';
-import greyboxMap from './data/maps/greybox_01.json';
+import type { QuestProgress } from './game/state';
+import type { QuestDefs } from './game/systems/quests';
+import type { DialogueDefs } from './game/systems/dialogue';
 import heroDef from './data/sprites/hero.json';
 import huskDef from './data/sprites/enemy_husk.json';
+import questsData from './data/quests.json';
+import dialogueData from './data/dialogue.json';
 
 export interface GameDebugHooks {
   booted: boolean;
   testMode: boolean;
+  getMode: () => { mode: string; paused: boolean; dialogueOpen: boolean; journalOpen: boolean };
   getPlayer: () => {
     x: number;
     y: number;
@@ -28,12 +34,16 @@ export interface GameDebugHooks {
   };
   getEnemies: () => { x: number; y: number; hp: number; state: HuskState }[];
   getStats: () => { shards: number; kills: number; pickupsOnGround: number };
+  getQuests: () => Record<string, QuestProgress>;
+  getInventory: () => string[];
+  getFlag: (flag: string) => boolean;
   getFPS: () => number;
   getStepCount: () => number;
   getChunks: () => { visible: number; total: number };
   getMapId: () => string;
   isDebugOverlayOn: () => boolean;
-  /** Swap in a new map (used by map transitions and the editor round-trip). */
+  isCellBlocked: (tx: number, ty: number) => boolean;
+  /** Swap in a new map (used by the editor round-trip test). */
   loadMap: (map: MapData) => void;
   /** Test-mode only: place the player somewhere exact. */
   teleport?: (x: number, y: number) => void;
@@ -48,6 +58,8 @@ declare global {
 const params = new URLSearchParams(window.location.search);
 // ?test=1 → deterministic mode: fixed RNG seed, no audio (PLAN §12).
 const testMode = params.get('test') === '1';
+// In test mode we skip the title screen unless the test asks for it.
+const wantTitle = params.get('title') === '1';
 
 async function boot(): Promise<void> {
   const app = new Application();
@@ -83,58 +95,86 @@ async function boot(): Promise<void> {
   const input = new Input();
   input.attach(window);
 
-  let scene = new WorldScene(
-    app.renderer,
-    greyboxMap as MapData,
+  const game = new Game(
+    app,
     input,
-    app.screen,
     assets,
     services,
+    questsData as QuestDefs,
+    dialogueData as DialogueDefs,
+    window.localStorage,
   );
-  app.stage.addChild(scene.container, scene.uiLayer);
-
-  const loadMap = (map: MapData): void => {
-    app.stage.removeChild(scene.container, scene.uiLayer);
-    scene.container.destroy({ children: true });
-    scene.uiLayer.destroy({ children: true });
-    scene = new WorldScene(app.renderer, map, input, app.screen, assets, services);
-    app.stage.addChild(scene.container, scene.uiLayer);
-  };
+  if (testMode && !wantTitle) game.newGame();
 
   const loop = new FixedLoop(
-    (dt) => scene.update(dt),
-    (alpha) => scene.render(alpha, app.ticker.FPS),
+    (dt) => game.update(dt),
+    (alpha) => game.render(alpha, app.ticker.FPS),
   );
   app.ticker.add((ticker) => loop.tick(ticker.deltaMS));
 
   const hooks: GameDebugHooks = {
     booted: true,
     testMode,
-    getPlayer: () => ({
-      x: scene.player.x,
-      y: scene.player.y,
-      facing: scene.player.facing,
-      depth: scene.player.depth,
-      anim: scene.player.animInfo,
-      hp: scene.player.hp,
-      maxHp: scene.player.maxHp,
-      state: scene.player.state,
-      deaths: scene.player.deaths,
+    getMode: () => ({
+      mode: game.mode,
+      paused: game.paused,
+      dialogueOpen: game.dialogueOpen,
+      journalOpen: game.journal.visible,
     }),
-    getEnemies: () => scene.enemies.map((e) => ({ x: e.x, y: e.y, hp: e.hp, state: e.state })),
+    getPlayer: () => {
+      const p = game.scene?.player;
+      if (!p) {
+        return {
+          x: 0,
+          y: 0,
+          facing: 'SE' as Facing,
+          depth: 0,
+          anim: null,
+          hp: 0,
+          maxHp: 0,
+          state: 'none',
+          deaths: 0,
+        };
+      }
+      return {
+        x: p.x,
+        y: p.y,
+        facing: p.facing,
+        depth: p.depth,
+        anim: p.animInfo,
+        hp: p.hp,
+        maxHp: p.maxHp,
+        state: p.state,
+        deaths: p.deaths,
+      };
+    },
+    getEnemies: () =>
+      (game.scene?.enemies ?? []).map((e) => ({ x: e.x, y: e.y, hp: e.hp, state: e.state })),
     getStats: () => ({
-      shards: scene.shards,
-      kills: scene.kills,
-      pickupsOnGround: scene.pickups.length,
+      shards: game.state.shards,
+      kills: game.scene?.kills ?? 0,
+      pickupsOnGround: game.scene?.pickups.length ?? 0,
     }),
+    getQuests: () => game.state.quests,
+    getInventory: () => [...game.state.inventory],
+    getFlag: (flag) => game.state.flags.get(flag),
     getFPS: () => app.ticker.FPS,
     getStepCount: () => loop.stepCount,
-    getChunks: () => ({ visible: scene.ground.visibleChunkCount, total: scene.ground.chunkCount }),
-    getMapId: () => scene.map.id,
-    isDebugOverlayOn: () => scene.debug.isEnabled,
-    loadMap,
+    getChunks: () => ({
+      visible: game.scene?.ground.visibleChunkCount ?? 0,
+      total: game.scene?.ground.chunkCount ?? 0,
+    }),
+    getMapId: () => game.scene?.map.id ?? '',
+    isDebugOverlayOn: () => game.scene?.debug.isEnabled ?? false,
+    isCellBlocked: (tx, ty) => {
+      const grid = game.scene?.grid;
+      if (!grid) return true;
+      const row = grid.cells[ty];
+      return row === undefined || row[tx] === undefined || row[tx] !== 0;
+    },
+    loadMap: (map) => game.loadMapData(map),
   };
-  if (testMode) hooks.teleport = (x, y) => scene.player.teleport(x, y);
+  if (testMode) hooks.teleport = (x, y) => game.scene?.player.teleport(x, y);
   window.__game = hooks;
 }
 
