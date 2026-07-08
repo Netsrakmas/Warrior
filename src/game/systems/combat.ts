@@ -58,3 +58,31 @@ export function meleeHitbox(
 ): { x: number; y: number; r: number } {
   return { x: x + dir.x * reach, y: y + dir.y * reach, r };
 }
+
+/**
+ * Sword-swing arc test: does a swing from (ax,ay) aimed along `dir`
+ * (normalized) reach a target circle at (tx,ty)? Targets inside the
+ * point-blank ring hit regardless of angle; beyond it they must be within
+ * the arc's half-angle of the aim direction. This replaces the old single
+ * offset circle so aiming at any angle (including screen-down, between the
+ * four sprite facings) connects.
+ */
+export function inSwordArc(
+  ax: number,
+  ay: number,
+  dir: Vec2,
+  tx: number,
+  ty: number,
+  targetR: number,
+  range: number,
+  halfArcCos: number,
+  pointBlank: number,
+): boolean {
+  const ex = tx - ax;
+  const ey = ty - ay;
+  const dist = Math.hypot(ex, ey);
+  if (dist > range + targetR) return false;
+  if (dist <= pointBlank + targetR) return true;
+  const dot = (ex * dir.x + ey * dir.y) / dist;
+  return dot >= halfArcCos;
+}

@@ -1,18 +1,11 @@
 import { Container, Graphics, Texture } from 'pixi.js';
-import {
-  depthOf,
-  facingFromVector,
-  worldToScreen,
-  FACING_DIRS,
-  type Facing,
-} from '../../engine/iso';
+import { depthOf, facingFromVector, worldToScreen, type Facing } from '../../engine/iso';
 import { moveCircle, type CollisionGrid } from '../../engine/collision';
 import { AnimSprite, type SpriteDef } from '../../engine/anim';
 import {
-  circlesOverlap,
   decayVelocity,
+  inSwordArc,
   knockbackVelocity,
-  meleeHitbox,
   type Combatant,
   type Hit,
 } from '../systems/combat';
@@ -26,8 +19,13 @@ const MAX_HP = 6; // half-hearts (3 hearts)
 const IFRAMES = 1.0;
 const SWORD_DAMAGE = 1;
 const SWORD_KNOCKBACK = 7;
-const SWORD_REACH = 0.7;
-const SWORD_R = 0.55;
+// Swing coverage: an arc in front of the aim direction (PLAN pillar 1 —
+// readable). Aim is the exact last movement direction, NOT quantized to the
+// 4 sprite facings, so attacking "screen-down" between facings connects.
+const SWORD_RANGE = 1.3;
+const SWORD_HALF_ARC = (110 / 2) * (Math.PI / 180);
+const SWORD_HALF_ARC_COS = Math.cos(SWORD_HALF_ARC);
+const SWORD_POINT_BLANK = 0.45;
 const HURT_TIME = 0.25;
 const RESPAWN_TIME = 1.4;
 
@@ -73,6 +71,13 @@ export class Player implements Combatant {
   private attackActive = false;
   private swingHits = new Set<Combatant>();
   private moving = false;
+  /** Exact aim (last movement direction, normalized) — finer than `facing`. */
+  private aimX = 1;
+  private aimY = 0;
+  /** Aim frozen at swing start. */
+  private swingX = 1;
+  private swingY = 0;
+  private slashShown = false;
   private prevX: number;
   private prevY: number;
 
@@ -174,6 +179,9 @@ export class Player implements Combatant {
         this.moving = dir.x !== 0 || dir.y !== 0;
         if (this.moving) {
           this.facing = facingFromVector(dir.x, dir.y);
+          const len = Math.hypot(dir.x, dir.y);
+          this.aimX = dir.x / len;
+          this.aimY = dir.y / len;
           const next = moveCircle(
             ctx.grid,
             this.x,
@@ -188,6 +196,9 @@ export class Player implements Combatant {
         if (ATTACK_KEYS.some((k) => input.justPressed(k))) {
           this.state = 'attack';
           this.attackActive = false;
+          this.slashShown = false;
+          this.swingX = this.aimX;
+          this.swingY = this.aimY;
           this.anim?.play('attack', this.facing, true);
           ctx.audio.play('swing');
         } else {
@@ -196,7 +207,13 @@ export class Player implements Combatant {
         break;
       }
       case 'attack': {
-        if (this.attackActive) this.resolveSword(ctx);
+        if (this.attackActive) {
+          if (!this.slashShown) {
+            this.slashShown = true;
+            ctx.fx.slash(this.x, this.y, this.swingX, this.swingY, SWORD_HALF_ARC);
+          }
+          this.resolveSword(ctx);
+        }
         if (!this.anim || this.anim.isDone) {
           this.state = 'normal';
           this.attackActive = false;
@@ -221,11 +238,23 @@ export class Player implements Combatant {
   }
 
   private resolveSword(ctx: PlayerCtx): void {
-    const dir = FACING_DIRS[this.facing];
-    const hb = meleeHitbox(this.x, this.y, dir, SWORD_REACH, SWORD_R);
+    const dir = { x: this.swingX, y: this.swingY };
     for (const enemy of ctx.enemies) {
       if (!enemy.alive || this.swingHits.has(enemy)) continue;
-      if (!circlesOverlap(hb.x, hb.y, hb.r, enemy.x, enemy.y, enemy.radius)) continue;
+      if (
+        !inSwordArc(
+          this.x,
+          this.y,
+          dir,
+          enemy.x,
+          enemy.y,
+          enemy.radius,
+          SWORD_RANGE,
+          SWORD_HALF_ARC_COS,
+          SWORD_POINT_BLANK,
+        )
+      )
+        continue;
       const landed = enemy.applyHit({
         damage: SWORD_DAMAGE,
         fromX: this.x,

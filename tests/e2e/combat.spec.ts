@@ -97,6 +97,36 @@ test('sword kills a husk in three hits and loot drops', async ({ page }) => {
   expect(after.shards).toBeGreaterThan(0);
 });
 
+test('sword hits an enemy directly below on screen (between the 4 facings)', async ({ page }) => {
+  await bootGame(page);
+  // Enemy straight screen-down from the player = world (+d,+d). At 0.85
+  // tiles diagonal this was a whiff before analog aim + arc swings.
+  await page.evaluate(() => {
+    const e = window.__game!.getEnemies()[0]!;
+    window.__game!.teleport!(e.x - 0.85, e.y - 0.85);
+  });
+  const hp0 = await page.evaluate(() => window.__game!.getEnemies()[0]!.hp);
+
+  // Face screen-down (ArrowDown), then swing. Retry — the husk patrols.
+  for (let i = 0; i < 8; i++) {
+    await page.evaluate(() => {
+      const e = window.__game!.getEnemies()[0];
+      if (e) window.__game!.teleport!(e.x - 0.85, e.y - 0.85);
+    });
+    await page.keyboard.down('ArrowDown');
+    await page.waitForTimeout(120);
+    await page.keyboard.up('ArrowDown');
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(150);
+    await page.keyboard.up('Space');
+    await page.waitForTimeout(350);
+    const hp = await page.evaluate(() => window.__game!.getEnemies()[0]?.hp ?? 0);
+    if (hp < hp0) break;
+  }
+  const hp = await page.evaluate(() => window.__game!.getEnemies()[0]?.hp ?? 0);
+  expect(hp).toBeLessThan(hp0);
+});
+
 test('husk telegraphs, then hits: player loses hp and gets i-frames', async ({ page }) => {
   await bootGame(page);
   const before = await page.evaluate(() => window.__game!.getPlayer());

@@ -12,7 +12,7 @@ export class Fx {
   private shakeTimer = 0;
   private shakeDuration = 0;
   private shakeAmp = 0;
-  private sparks: { g: Graphics; life: number }[] = [];
+  private sparks: { g: Container; life: number }[] = [];
 
   hitstop(seconds = 0.06): void {
     this.hitstopTimer = Math.max(this.hitstopTimer, seconds);
@@ -22,6 +22,36 @@ export class Fx {
     this.shakeAmp = Math.max(this.shakeAmp, amplitude);
     this.shakeDuration = duration;
     this.shakeTimer = Math.max(this.shakeTimer, duration);
+  }
+
+  /**
+   * Sword-swing arc oriented along the world-space aim direction, drawn as a
+   * screen-space iso-squashed sweep so the player can read exactly where the
+   * hit lands (placeholder until the Phase 7 slash VFX).
+   */
+  slash(wx: number, wy: number, dirX: number, dirY: number, halfArcRad: number): void {
+    const wrap = new Container();
+    const g = new Graphics();
+    // In un-squashed circle space the screen angle of world dir (dx,dy) is
+    // atan2(dx+dy, dx-dy); the wrapper's y-scale applies the iso squash.
+    const angle = Math.atan2(dirX + dirY, dirX - dirY);
+    g.arc(0, 0, 86, angle - halfArcRad, angle + halfArcRad).stroke({
+      width: 14,
+      color: 0xfff2b0,
+      alpha: 0.85,
+    });
+    g.arc(0, 0, 70, angle - halfArcRad * 0.8, angle + halfArcRad * 0.8).stroke({
+      width: 6,
+      color: 0xffffff,
+      alpha: 0.9,
+    });
+    wrap.scale.y = 0.5;
+    wrap.addChild(g);
+    const s = worldToScreen(wx, wy);
+    wrap.position.set(s.x, s.y - 24);
+    wrap.zIndex = wx + wy + 0.02;
+    this.layer.addChild(wrap);
+    this.sparks.push({ g: wrap, life: 0.2 });
   }
 
   spark(wx: number, wy: number, color = 0xfff2b0): void {
